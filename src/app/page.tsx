@@ -112,31 +112,15 @@ export default function Home() {
         }
         setView('studentHome');
       } else {
+        // Load all students BEFORE showing admin panel
+        await loadAllStudents();
         setView('adminDashboard');
-        // Load all students
-        loadAllStudents();
-
-        // Show debug info
-        setTimeout(async () => {
-          try {
-            const res = await fetch('/api/admin/students/progress');
-            const data = await res.json();
-            const studentIds = data.students?.map((s: any) => `${s.name}=${s.id}`).join('\n') || 'none';
-            const progressIds = Object.keys(data.progress || {}).join('\n') || 'none';
-            const debug = data.debug || {};
-            
-            alert(`DEBUG INFO:\n\nStudent IDs:\n${studentIds}\n\nProgress IDs:\n${progressIds}\n\nStudents: ${data.students?.length}\nProgress found in DB: ${debug.totalProgressInDb || 0}\nProgress matched: ${debug.matchedProgress || 0}`);
-          } catch (e) {
-            console.error(e);
-            alert('Debug error: ' + e);
-          }
-        }, 1000);
       }
     } catch (error) {
       console.error('Login error:', error);
       setLoginError('An error occurred. Please try again.');
     }
-    
+
     setIsLoading(false);
   };
 
