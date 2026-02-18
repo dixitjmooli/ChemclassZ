@@ -5,57 +5,30 @@ export async function GET(request: NextRequest) {
   try {
     const db = getDb();
     if (!db) {
-      console.error('Firebase not initialized');
       return NextResponse.json(
         { error: 'Firebase not initialized' },
         { status: 500 }
       );
     }
 
-    console.log('Starting to fetch students...');
+    console.log('=== Fetching students for admin ===');
 
-    // Try to get students with role filter first
+    // Get all students
     const usersRef = collection(db, 'users');
     const q = query(usersRef, where('role', '==', 'student'));
     const querySnapshot = await getDocs(q);
 
-    console.log('Student query result count:', querySnapshot.size);
-
-    let userDocs = querySnapshot.docs;
-
-    // If no students found with role filter, try getting ALL users and filter manually
-    if (userDocs.length === 0) {
-      console.log('No students found with role filter, getting all users...');
-      const allUsersSnapshot = await getDocs(collection(db, 'users'));
-      console.log('Total users in database:', allUsersSnapshot.size);
-      
-      userDocs = [];
-      allUsersSnapshot.forEach((doc) => {
-        const userData = doc.data();
-        console.log('User:', doc.id, 'Role:', userData.role);
-        // Filter students manually
-        if (userData.role === 'student') {
-          userDocs.push(doc);
-        }
-      });
-      console.log('Students after manual filter:', userDocs.length);
-    }
-
     const students = [];
     const progressMap = {};
 
-    // Get all students' progress
-    for (const userDoc of userDocs) {
+    console.log(`Found ${querySnapshot.size} students in database`);
+
+    // Process each student
+    querySnapshot.forEach((userDoc) => {
       const user = userDoc.data();
-      // Use document ID if available, otherwise try to get it from data
-      const userId = userDoc.id || user.id;
+      const userId = userDoc.id;
 
-      if (!userId) {
-        console.error('User document has no ID:', userDoc.id, user);
-        continue;
-      }
-
-      console.log('Processing student:', userId, { name: user.name, username: user.username });
+      console.log(`\nStudent: ${user.name}, ID: ${userId}, Doc ID: ${userDoc.id}, Data ID: ${user.id}`);
 
       students.push({
         id: userId,
@@ -65,33 +38,42 @@ export async function GET(request: NextRequest) {
         school: user.school || '',
         createdAt: user.createdAt || '',
       });
+    });
 
-      // Get progress for this student
-      try {
-        const progressRef = doc(db, 'progress', userId);
-        const progressDoc = await getDoc(progressRef);
+    // Now get ALL progress documents
+    console.log('\n=== Fetching all progress documents ===');
+    const progressRef = collection(db, 'progress');
+    const progressSnapshot = await getDocs(progressRef);
 
-        console.log('Looking for progress document with ID:', userId);
+    console.log(`Found ${progressSnapshot.size} progress documents`);
 
-        if (progressDoc.exists()) {
-          progressMap[userId] = progressDoc.data();
-          const progressData = progressDoc.data();
-          console.log('✅ Found progress for student:', userId);
-          console.log('   Overall progress:', progressData?.overallProgress);
-          console.log('   Last updated:', progressData?.lastUpdated);
-        } else {
-          console.log('⚠️ No progress found for student:', userId);
-          console.log('   This might be because:');
-          console.log('   1. Student has never logged in yet');
-          console.log('   2. Progress was saved under a different ID');
-        }
-      } catch (progressError) {
-        console.error('❌ Error fetching progress for student', userId, progressError);
+    progressSnapshot.forEach((progressDoc) => {
+      const progressId = progressDoc.id;
+      const progressData = progressDoc.data();
+      const studentIdFromProgress = progressData.studentId;
+
+      console.log(`\nProgress document ID: ${progressId}`);
+      console.log(`  studentId in data: ${studentIdFromProgress}`);
+      console.log(`  overallProgress: ${progressData.overallProgress}`);
+
+      // Try to match this progress to a student
+      // First try matching by document ID (which should be the student's ID)
+      if (students.find(s => s.id === progressId)) {
+        console.log(`  ✅ Matched by progress doc ID to student`);
+        progressMap[progressId] = progressData;
       }
-    }
+      // Then try matching by studentId field in progress data
+      else if (studentIdFromProgress && students.find(s => s.id === studentIdFromProgress)) {
+        console.log(`  ✅ Matched by studentId field to student`);
+        progressMap[studentIdFromProgress] = progressData;
+      } else {
+        console.log(`  ❌ No matching student found for this progress!`);
+      }
+    });
 
-    console.log('Returning students count:', students.length);
-    console.log('Returning progress count:', Object.keys(progressMap).length);
+    console.log(`\n=== Final Results ===`);
+    console.log(`Students: ${students.length}`);
+    console.log(`Progress matched: ${Object.keys(progressMap).length}`);
 
     return NextResponse.json({
       success: true,

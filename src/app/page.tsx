@@ -65,9 +65,6 @@ export default function Home() {
   const [studentDetailViewOpen, setStudentDetailViewOpen] = useState(false);
   const [selectedStudentForView, setSelectedStudentForView] = useState<User | null>(null);
 
-  // Debug info for admin
-  const [debugInfo, setDebugInfo] = useState<string>('');
-
   // Test Marks - Chapter Selection
   const [selectedChapterForMarks, setSelectedChapterForMarks] = useState<Chapter | null>(null);
   const [chapterMarksInputs, setChapterMarksInputs] = useState<Record<string, string>>({});
@@ -102,40 +99,22 @@ export default function Home() {
       setCurrentUser(user);
       
       if (loginType === 'student') {
-        console.log('========================================');
-        console.log('Student login, user object:', user);
-        console.log('User ID:', user.id);
-        console.log('========================================');
-
+        console.log('Student login, user ID:', user.id);
         // Load student's saved progress from Firebase
-        console.log('Loading student progress from Firebase...');
         const progressResponse = await fetch(`/api/student/progress?studentId=${user.id}`);
         const progressData = await progressResponse.json();
 
-        console.log('Progress API response status:', progressResponse.status);
-        console.log('Progress API response:', progressData);
-
         if (progressData.success && progressData.progress) {
-          console.log('✅ Loaded saved progress for student:', user.id);
-          console.log('Progress data keys:', Object.keys(progressData.progress));
-          console.log('Overall progress from Firebase:', progressData.progress.overallProgress);
           setStudentProgress(progressData.progress);
         } else {
-          console.log('⚠️ No saved progress found, initializing new progress');
           const initialProgress = initializeStudentProgress(user.id);
-          console.log('Initial progress created:', initialProgress);
           setStudentProgress(initialProgress);
         }
-
-        console.log('Setting view to studentHome...');
         setView('studentHome');
       } else {
-        console.log('Admin login, setting view to adminDashboard');
         setView('adminDashboard');
         // Load all students
-        console.log('About to call loadAllStudents');
-        await loadAllStudents();
-        console.log('loadAllStudents completed');
+        loadAllStudents();
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -166,64 +145,16 @@ export default function Home() {
 
   // Load all students for admin
   const loadAllStudents = async () => {
-    setDebugInfo('Loading...');
-
     try {
-      console.log('========================================');
-      console.log('🔄 Loading all students for admin...');
       const response = await fetch('/api/admin/students/progress');
-
-      console.log('API response status:', response.status);
-
       const data = await response.json();
 
-      console.log('Students API response:', data);
-
       if (response.ok) {
-        console.log('✅ Students loaded from API');
-        console.log('   Total students:', data.students?.length || 0);
-        console.log('   Student IDs:', data.students?.map((s: any) => ({ id: s.id, name: s.name })) || []);
-
         setAllStudents(data.students || []);
         setAllStudentsProgress(data.progress || {});
-
-        console.log('✅ Progress records loaded:', Object.keys(data.progress || {}).length);
-        console.log('   Progress IDs:', Object.keys(data.progress || {}));
-
-        // Build debug message
-        const progressCount = Object.keys(data.progress || {}).length;
-        const studentsWithoutProgress = data.students?.filter((s: any) => !data.progress[s.id]) || [];
-
-        const debugMsg = `Students: ${data.students?.length || 0}\nProgress Records: ${progressCount}\nStudents Without Progress: ${studentsWithoutProgress.length}\n\nStudent IDs:\n${data.students?.map((s: any) => `- ${s.name}: ${s.id}`).join('\n') || 'None'}\n\nProgress IDs:\n${Object.keys(data.progress || {}).join('\n') || 'None'}`;
-
-        setDebugInfo(debugMsg);
-
-        // Alert user about results
-        if (data.students && data.students.length > 0) {
-          console.log(`✅ Loaded ${data.students.length} students with ${progressCount} progress records`);
-
-          if (progressCount === 0) {
-            alert(`⚠️ No progress found for any student!\n\nStudents loaded: ${data.students.length}\n\nThis means students haven't saved any progress yet, or there's an ID mismatch.\n\nNext steps:\n1. Have a student login and check some topics\n2. Then come back and click 'Reload Progress'`);
-          } else if (studentsWithoutProgress.length > 0) {
-            alert(`✅ Progress loaded!\n\nTotal students: ${data.students.length}\nStudents with progress: ${progressCount}\nStudents without progress: ${studentsWithoutProgress.length}\n\nStudents without progress: ${studentsWithoutProgress.map((s: any) => s.name).join(', ')}`);
-          } else {
-            alert(`✅ All ${data.students.length} students have progress data!`);
-          }
-        } else {
-          console.warn('⚠️ No students found in database');
-          setDebugInfo('No students found!');
-          alert(`No students found. If you expect to see students, please check:\n1. Are there students in the database?\n2. Do they have role="student"?`);
-        }
-      } else {
-        console.error('❌ API returned error:', data.error);
-        setDebugInfo(`Error: ${data.error}`);
-        alert(`Error loading students: ${data.error || 'Unknown error'}`);
       }
-      console.log('========================================');
     } catch (error) {
-      console.error('❌ Error loading students:', error);
-      setDebugInfo(`Error: ${error}`);
-      alert(`Failed to load students: ${error}`);
+      console.error('Error loading students:', error);
     }
   };
 
@@ -313,20 +244,7 @@ export default function Home() {
 
   // Update checkbox
   const updateCheckbox = async (topicId: string, field: keyof TopicProgress, value: boolean) => {
-    if (!selectedChapter || !currentUser) {
-      console.error('❌ Cannot update checkbox: missing selectedChapter or currentUser');
-      return;
-    }
-
-    console.log('========================================');
-    console.log('📝 Updating checkbox');
-    console.log('Current user ID:', currentUser.id);
-    console.log('Current user name:', currentUser.name);
-    console.log('Chapter:', selectedChapter.id, selectedChapter.title);
-    console.log('Topic:', topicId);
-    console.log('Field:', field);
-    console.log('New value:', value);
-    console.log('========================================');
+    if (!selectedChapter || !currentUser) return;
 
     const newProgress = { ...studentProgress, chapters: { ...studentProgress.chapters } };
     if (!newProgress.chapters[selectedChapter.id]) {
@@ -368,37 +286,18 @@ export default function Home() {
         }),
       });
 
-      const result = await response.json();
-      console.log('API Response status:', response.status);
-      console.log('Checkbox update result:', result);
-
       if (!response.ok) {
-        console.error('❌ Failed to update progress:', result.error);
         alert('Failed to save progress. Please try again.');
-      } else {
-        console.log('✅ Progress saved successfully');
       }
     } catch (error) {
-      console.error('❌ Error updating progress:', error);
+      console.error('Error updating progress:', error);
       alert('Error saving progress. Please try again.');
     }
   };
 
   // Update chapter-level checkbox
   const updateChapterCheckbox = async (field: 'hotsCompleted' | 'notesCompleted', value: boolean) => {
-    if (!selectedChapter || !currentUser) {
-      console.error('❌ Cannot update chapter checkbox: missing selectedChapter or currentUser');
-      return;
-    }
-
-    console.log('========================================');
-    console.log('📝 Updating chapter-level checkbox');
-    console.log('Current user ID:', currentUser.id);
-    console.log('Current user name:', currentUser.name);
-    console.log('Chapter:', selectedChapter.id, selectedChapter.title);
-    console.log('Field:', field);
-    console.log('New value:', value);
-    console.log('========================================');
+    if (!selectedChapter || !currentUser) return;
 
     const newProgress = { ...studentProgress, chapters: { ...studentProgress.chapters } };
     if (!newProgress.chapters[selectedChapter.id]) {
@@ -430,18 +329,11 @@ export default function Home() {
         }),
       });
 
-      const result = await response.json();
-      console.log('API Response status:', response.status);
-      console.log('Chapter checkbox update result:', result);
-
       if (!response.ok) {
-        console.error('❌ Failed to update chapter progress:', result.error);
         alert('Failed to save progress. Please try again.');
-      } else {
-        console.log('✅ Chapter progress saved successfully');
       }
     } catch (error) {
-      console.error('❌ Error updating chapter progress:', error);
+      console.error('Error updating progress:', error);
       alert('Error saving progress. Please try again.');
     }
   };
@@ -1360,13 +1252,6 @@ export default function Home() {
       </div>
       {renderAdminNav()}
       <div className="max-w-6xl mx-auto p-6">
-        {/* Debug Info Card - Only visible in admin Students section */}
-        {debugInfo && (
-          <Card className="mb-4 p-4 bg-yellow-50 border-2 border-yellow-200">
-            <h4 className="font-semibold text-yellow-900 mb-2 text-sm">Debug Information</h4>
-            <pre className="text-xs text-yellow-800 whitespace-pre-wrap font-mono">{debugInfo}</pre>
-          </Card>
-        )}
         <Card className="p-6">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -1374,50 +1259,14 @@ export default function Home() {
                 <Users className="w-5 h-5" />
                 Students & Progress
               </CardTitle>
-              <div className="flex gap-2">
-                <Button
-                  onClick={async () => {
-                    console.log('🔄 Manual reload of students and progress...');
-                    await loadAllStudents();
-                    console.log('✅ Reload complete');
-                    alert(`Loaded ${allStudents.length} students and ${Object.keys(allStudentsProgress).length} progress records.`);
-                  }}
-                  size="sm"
-                  variant="outline"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2 rotate-180" />
-                  Reload Progress
-                </Button>
-                <Button
-                  onClick={async () => {
-                    // Debug: Show detailed info
-                    const debugInfo = {
-                      totalStudents: allStudents.length,
-                      totalProgress: Object.keys(allStudentsProgress).length,
-                      students: allStudents.map(s => ({
-                        name: s.name,
-                        id: s.id,
-                        hasProgress: !!allStudentsProgress[s.id],
-                        progress: allStudentsProgress[s.id]?.overallProgress
-                      }))
-                    };
-                    console.log('=== DEBUG INFO ===', JSON.stringify(debugInfo, null, 2));
-                    alert(`Debug Info:\n\nStudents: ${allStudents.length}\nProgress Records: ${Object.keys(allStudentsProgress).length}\n\nCheck browser console (F12) for full details.`);
-                  }}
-                  size="sm"
-                  variant="destructive"
-                >
-                  Debug Info
-                </Button>
-                <Button
-                  onClick={() => setAddStudentModalOpen(true)}
-                  size="sm"
-                  className="bg-gradient-to-r from-purple-600 to-purple-500"
-                >
-                  <Users className="w-4 h-4 mr-2" />
-                  Add Student
-                </Button>
-              </div>
+              <Button
+                onClick={() => setAddStudentModalOpen(true)}
+                size="sm"
+                className="bg-gradient-to-r from-purple-600 to-purple-500"
+              >
+                <Users className="w-4 h-4 mr-2" />
+                Add Student
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
@@ -1426,17 +1275,6 @@ export default function Home() {
                 {allStudents.map((student) => {
                   const progress = allStudentsProgress[student.id];
                   const overallProgress = progress?.overallProgress || 0;
-
-                  // Detailed debug logging
-                  console.log('=== Rendering Student ===');
-                  console.log('Student name:', student.name);
-                  console.log('Student ID:', student.id);
-                  console.log('Progress object found:', !!progress);
-                  console.log('Progress keys:', progress ? Object.keys(progress) : 'none');
-                  console.log('Overall progress value:', progress?.overallProgress);
-                  console.log('Displayed progress:', overallProgress);
-                  console.log('All progress keys:', Object.keys(allStudentsProgress));
-                  console.log('========================');
 
                   const rank = calculateStudentRank(student.id);
                   const rankColor = rank === 1 ? 'text-yellow-600' : rank === 2 ? 'text-gray-600' : rank === 3 ? 'text-orange-600' : 'text-gray-700';
@@ -1462,10 +1300,6 @@ export default function Home() {
                           <div>
                             <h3 className="font-semibold text-gray-900">{student.name}</h3>
                             <p className="text-sm text-gray-500">{(student as any)?.school || 'No school'}</p>
-                            <p className="text-xs text-gray-400">ID: {student.id}</p>
-                            <p className={`text-xs ${progress ? 'text-green-500' : 'text-red-500'}`}>
-                              {progress ? '✓ Progress data loaded' : '⚠ No progress data'}
-                            </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-4">
