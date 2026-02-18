@@ -1318,10 +1318,12 @@ ${Object.keys(data.progress || {}).join('\n')}
                   const rankBg = rank === 1 ? 'bg-yellow-100' : rank === 2 ? 'bg-gray-200' : rank === 3 ? 'bg-orange-100' : 'bg-gray-100';
                   
                   return (
-                    <Card 
-                      key={student.id} 
+                    <Card
+                      key={student.id}
                       className="p-4 cursor-pointer hover:shadow-md transition-all"
                       onClick={() => {
+                        const progressData = allStudentsProgress[student.id];
+                        alert(`Student: ${student.name}\nStudent ID: ${student.id}\nHas Progress: ${!!progressData}\nProgress Value: ${progressData?.overallProgress || 0}%`);
                         setSelectedStudentForView(student);
                         setStudentDetailViewOpen(true);
                       }}
@@ -1337,10 +1339,6 @@ ${Object.keys(data.progress || {}).join('\n')}
                           <div>
                             <h3 className="font-semibold text-gray-900">{student.name}</h3>
                             <p className="text-sm text-gray-500">{(student as any)?.school || 'No school'}</p>
-                            <p className="text-xs text-gray-400">ID: {student.id}</p>
-                            <p className={`text-xs font-medium ${progress ? 'text-green-600' : 'text-red-600'}`}>
-                              {progress ? `✓ Progress: ${progress.overallProgress}%` : '✗ No progress found'}
-                            </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-4">
