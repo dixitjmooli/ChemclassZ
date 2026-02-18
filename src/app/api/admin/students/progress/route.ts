@@ -11,16 +11,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Get ALL progress documents
+    const progressSnapshot = await getDocs(collection(db, 'progress'));
+
     // Get all students
     const usersRef = collection(db, 'users');
     const q = query(usersRef, where('role', '==', 'student'));
     const studentsSnapshot = await getDocs(q);
 
     const students = [];
+    const progressMap = {};
+
+    // Build students list
     studentsSnapshot.forEach((userDoc) => {
       const user = userDoc.data();
+      const docId = userDoc.id;
+      const dataId = user.id;
+
       students.push({
-        id: userDoc.id,
+        id: docId,
         username: user.username || '',
         name: user.name || '',
         role: user.role || 'student',
@@ -29,16 +38,25 @@ export async function GET(request: NextRequest) {
       });
     });
 
-    // Get ALL progress documents
-    const progressSnapshot = await getDocs(collection(db, 'progress'));
-
-    // Create lookup by studentId field in progress data
-    const progressMap = {};
+    // Match progress to students
     progressSnapshot.forEach((progressDoc) => {
       const data = progressDoc.data();
-      // Use the studentId field from progress data as the key
-      if (data.studentId) {
-        progressMap[data.studentId] = data;
+      const docId = progressDoc.id;
+      const studentIdFromData = data.studentId;
+
+      // Try to match by document ID
+      const studentByDocId = students.find(s => s.id === docId);
+      if (studentByDocId) {
+        progressMap[studentByDocId.id] = data;
+        return;
+      }
+
+      // Try to match by studentId field
+      if (studentIdFromData) {
+        const studentByDataId = students.find(s => s.id === studentIdFromData);
+        if (studentByDataId) {
+          progressMap[studentByDataId.id] = data;
+        }
       }
     });
 
