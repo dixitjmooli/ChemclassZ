@@ -1269,14 +1269,41 @@ export default function Home() {
                 <Users className="w-5 h-5" />
                 Students & Progress
               </CardTitle>
-              <Button
-                onClick={() => setAddStudentModalOpen(true)}
-                size="sm"
-                className="bg-gradient-to-r from-purple-600 to-purple-500"
-              >
-                <Users className="w-4 h-4 mr-2" />
-                Add Student
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/api/admin/students/progress');
+                      const data = await res.json();
+                      const info = `
+Students: ${data.students?.length}
+Progress Records: ${Object.keys(data.progress || {}).length}
+
+STUDENT IDs:
+${data.students?.map((s: any) => s.name + ' = ' + s.id).join('\n')}
+
+PROGRESS IDs:
+${Object.keys(data.progress || {}).join('\n')}
+                      `;
+                      prompt(info);
+                    } catch (e) {
+                      alert('Error: ' + e);
+                    }
+                  }}
+                  size="sm"
+                  variant="outline"
+                >
+                  Show Debug Info
+                </Button>
+                <Button
+                  onClick={() => setAddStudentModalOpen(true)}
+                  size="sm"
+                  className="bg-gradient-to-r from-purple-600 to-purple-500"
+                >
+                  <Users className="w-4 h-4 mr-2" />
+                  Add Student
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
