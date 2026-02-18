@@ -190,16 +190,15 @@ export default function Home() {
           const progressCount = Object.keys(data.progress || {}).length;
           console.log(`✅ Loaded ${data.students.length} students with ${progressCount} progress records`);
 
+          // Show alert with summary
+          const studentsWithoutProgress = data.students.filter((s: any) => !data.progress[s.id]);
+
           if (progressCount === 0) {
-            console.warn('⚠️ No progress records found! This might indicate:');
-            console.warn('   1. Students have not logged in yet');
-            console.warn('   2. Student IDs are not matching between users and progress collections');
+            alert(`⚠️ No progress found for any student!\n\nStudents loaded: ${data.students.length}\n\nThis means students haven't saved any progress yet, or there's an ID mismatch.\n\nNext steps:\n1. Have a student login and check some topics\n2. Then come back and click 'Reload Progress'`);
+          } else if (studentsWithoutProgress.length > 0) {
+            alert(`✅ Progress loaded!\n\nTotal students: ${data.students.length}\nStudents with progress: ${progressCount}\nStudents without progress: ${studentsWithoutProgress.length}\n\nStudents without progress: ${studentsWithoutProgress.map((s: any) => s.name).join(', ')}`);
           } else {
-            // Check which students don't have progress
-            const studentsWithoutProgress = data.students.filter((s: any) => !data.progress[s.id]);
-            if (studentsWithoutProgress.length > 0) {
-              console.warn('⚠️ Students without progress:', studentsWithoutProgress.map((s: any) => s.name));
-            }
+            alert(`✅ All ${data.students.length} students have progress data!`);
           }
         } else {
           console.warn('⚠️ No students found in database');
