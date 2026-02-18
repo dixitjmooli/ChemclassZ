@@ -13,6 +13,30 @@ export async function GET(request: NextRequest) {
 
     console.log('=== Fetching students for admin ===');
 
+    // Get ALL progress documents first
+    const progressRef = collection(db, 'progress');
+    const progressSnapshot = await getDocs(progressRef);
+    
+    console.log(`Found ${progressSnapshot.size} progress documents`);
+
+    // Store all progress in a map with both keys
+    const progressByDocId = {};
+    const progressByStudentId = {};
+
+    progressSnapshot.forEach((progressDoc) => {
+      const data = progressDoc.data();
+      const docId = progressDoc.id;
+      const studentIdInData = data.studentId;
+
+      // Map by document ID
+      progressByDocId[docId] = data;
+
+      // Also map by studentId field if it exists
+      if (studentIdInData) {
+        progressByStudentId[studentIdInData] = data;
+      }
+    });
+
     // Get all students
     const usersRef = collection(db, 'users');
     const q = query(usersRef, where('role', '==', 'student'));
@@ -21,54 +45,47 @@ export async function GET(request: NextRequest) {
     const students = [];
     const progressMap = {};
 
-    console.log(`Found ${querySnapshot.size} students in database`);
+    console.log(`Found ${querySnapshot.size} students`);
 
     // Process each student
     querySnapshot.forEach((userDoc) => {
       const user = userDoc.data();
-      const userId = userDoc.id;
+      const docId = userDoc.id;
+      const dataId = user.id;
 
-      console.log(`\nStudent: ${user.name}, ID: ${userId}, Doc ID: ${userDoc.id}, Data ID: ${user.id}`);
+      console.log(`\nStudent: ${user.name}`);
+      console.log(`  Document ID: ${docId}`);
+      console.log(`  ID in data: ${dataId}`);
+
+      // Try to find progress by document ID first
+      let progress = progressByDocId[docId];
+      if (!progress && dataId) {
+        progress = progressByDocId[dataId];
+      }
+
+      // If still no progress, try by studentId field
+      if (!progress && progressByStudentId[docId]) {
+        progress = progressByStudentId[docId];
+      }
+      if (!progress && dataId && progressByStudentId[dataId]) {
+        progress = progressByStudentId[dataId];
+      }
+
+      if (progress) {
+        console.log(`  ✅ Found progress! Overall: ${progress.overallProgress}%`);
+        progressMap[docId] = progress;
+      } else {
+        console.log(`  ❌ No progress found for this student`);
+      }
 
       students.push({
-        id: userId,
+        id: docId,
         username: user.username || '',
         name: user.name || '',
         role: user.role || 'student',
         school: user.school || '',
         createdAt: user.createdAt || '',
       });
-    });
-
-    // Now get ALL progress documents
-    console.log('\n=== Fetching all progress documents ===');
-    const progressRef = collection(db, 'progress');
-    const progressSnapshot = await getDocs(progressRef);
-
-    console.log(`Found ${progressSnapshot.size} progress documents`);
-
-    progressSnapshot.forEach((progressDoc) => {
-      const progressId = progressDoc.id;
-      const progressData = progressDoc.data();
-      const studentIdFromProgress = progressData.studentId;
-
-      console.log(`\nProgress document ID: ${progressId}`);
-      console.log(`  studentId in data: ${studentIdFromProgress}`);
-      console.log(`  overallProgress: ${progressData.overallProgress}`);
-
-      // Try to match this progress to a student
-      // First try matching by document ID (which should be the student's ID)
-      if (students.find(s => s.id === progressId)) {
-        console.log(`  ✅ Matched by progress doc ID to student`);
-        progressMap[progressId] = progressData;
-      }
-      // Then try matching by studentId field in progress data
-      else if (studentIdFromProgress && students.find(s => s.id === studentIdFromProgress)) {
-        console.log(`  ✅ Matched by studentId field to student`);
-        progressMap[studentIdFromProgress] = progressData;
-      } else {
-        console.log(`  ❌ No matching student found for this progress!`);
-      }
     });
 
     console.log(`\n=== Final Results ===`);
