@@ -157,17 +157,9 @@ export default function Home() {
       if (response.ok) {
         setAllStudents(data.students || []);
         setAllStudentsProgress(data.progress || {});
-
-        // Show alert with data
-        const studentsWithProgress = (data.students || []).filter((s: any) => data.progress[s.id]);
-        const studentNames = (data.students || []).map((s: any) => s.name).join(', ');
-        const studentsWithoutProgress = (data.students || []).filter((s: any) => !data.progress[s.id]).map((s: any) => s.name).join(', ');
-
-        alert(`ADMIN DATA LOADED:\n\nTotal Students: ${data.students?.length || 0}\nStudents WITH Progress: ${studentsWithProgress.length}\nStudents WITHOUT Progress: ${(data.students?.length || 0) - studentsWithProgress.length}\n\nAll Students: ${studentNames}\n\nNo Progress: ${studentsWithoutProgress || 'none'}`);
       }
     } catch (error) {
       console.error('Error loading students:', error);
-      alert(`ERROR: ${error}`);
     }
   };
 
@@ -548,10 +540,13 @@ export default function Home() {
 
   // Calculate student rank based on overall progress and test marks
   const calculateStudentRank = (studentId: string): number => {
+    // Only calculate rank if we have students data
+    if (!allStudents || allStudents.length === 0) return 1;
+
     const studentsWithScores = allStudents.map(student => {
       const progress = allStudentsProgress[student.id];
       const overallProgress = progress?.overallProgress || 0;
-      
+
       // Calculate total test marks
       let totalMarks = 0;
       let totalTests = 0;
@@ -565,13 +560,13 @@ export default function Home() {
       // Score calculation: 70% progress + 30% test average
       const testAverage = totalTests > 0 ? (totalMarks / totalTests) : 0;
       const finalScore = (overallProgress * 0.7) + (testAverage * 0.3);
-      
+
       return { studentId, score: finalScore };
     });
 
     // Sort by score (highest first)
     studentsWithScores.sort((a, b) => b.score - a.score);
-    
+
     // Find rank (1-indexed)
     const rank = studentsWithScores.findIndex(s => s.studentId === studentId) + 1;
     return rank;
@@ -1325,8 +1320,6 @@ ${Object.keys(data.progress || {}).join('\n')}
                       key={student.id}
                       className="p-4 cursor-pointer hover:shadow-md transition-all"
                       onClick={() => {
-                        const progressData = allStudentsProgress[student.id];
-                        alert(`Student: ${student.name}\nStudent ID: ${student.id}\nHas Progress: ${!!progressData}\nProgress Value: ${progressData?.overallProgress || 0}%`);
                         setSelectedStudentForView(student);
                         setStudentDetailViewOpen(true);
                       }}
