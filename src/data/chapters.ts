@@ -1,0 +1,177 @@
+import { Chapter } from '@/types/chemistry';
+
+export const CBSE_CHAPTERS: Chapter[] = [
+  {
+    id: 'ch1',
+    number: 1,
+    title: 'Solutions',
+    topics: [
+      { id: 'ch1-t1', name: 'Types of solutions', subTopics: ['Solid in liquid', 'Liquid in liquid', 'Gas in liquid', 'etc.'] },
+      { id: 'ch1-t2', name: 'Concentration Terms and Numericals', subTopics: ['Mass percentage', 'Mole fraction', 'Molarity', 'Molality', 'Parts per million (ppm)'] },
+      { id: 'ch1-t3', name: 'Solubility of solid in liquids' },
+      { id: 'ch1-t4', name: 'Solubility of gases in liquids (Henry\'s law)' },
+      { id: 'ch1-t5', name: 'Vapour Pressure & Raoult\'s law', subTopics: ['Ideal & Non-ideal solutions', 'Azeotropic Mixture'] },
+      { id: 'ch1-t6', name: 'Colligative Properties - a) Relative lowering of vapour pressure' },
+      { id: 'ch1-t7', name: 'Colligative Properties - b) Elevation of boiling point' },
+      { id: 'ch1-t8', name: 'Colligative Properties - c) Depression of freezing point' },
+      { id: 'ch1-t9', name: 'Colligative Properties - d) Osmotic pressure' },
+      { id: 'ch1-t10', name: 'Abnormal molecular mass & Van\'t Hoff factor', subTopics: ['Association', 'Dissociation'] },
+    ],
+    totalMilestones: 10
+  },
+  {
+    id: 'ch2',
+    number: 2,
+    title: 'Electrochemistry',
+    topics: [
+      { id: 'ch2-t1', name: 'Redox reactions (recapitulation)' },
+      { id: 'ch2-t2', name: 'Standard electrode potential & Electromotive force (EMF) of a cell' },
+      { id: 'ch2-t3', name: 'Nernst equation, Gibbs Energy & Equilibrium Constant' },
+      { id: 'ch2-t4', name: 'Conductance, conductivity and molar conductivity in electrolytic solutions' },
+      { id: 'ch2-t5', name: 'Variation of conductivity with concentration' },
+      { id: 'ch2-t6', name: 'Kohlrausch\'s law' },
+      { id: 'ch2-t7', name: 'Electrolytic cell, Faraday\'s laws of electrolysis & Products of Electrolysis' },
+      { id: 'ch2-t8', name: 'Types of cells', subTopics: ['Primary Cells', 'Secondary Cells', 'Fuel Cell', 'Corrosion'] },
+    ],
+    totalMilestones: 8
+  },
+  {
+    id: 'ch3',
+    number: 3,
+    title: 'Chemical Kinetics',
+    topics: [
+      { id: 'ch3-t1', name: 'Rate of a reaction', subTopics: ['Average rate', 'Instantaneous rate'] },
+      { id: 'ch3-t2', name: 'Rate law & Factors affecting rate of reaction' },
+      { id: 'ch3-t3', name: 'Rate constant, Order of a reaction, Numericals' },
+      { id: 'ch3-t4', name: 'Molecularity of a reaction' },
+      { id: 'ch3-t5', name: 'Integrated rate equations - Zero Order, Half life, Graphs' },
+      { id: 'ch3-t6', name: 'Integrated rate equations - First Order, Half life, Graphs' },
+      { id: 'ch3-t7', name: 'Pseudo first-order reactions' },
+      { id: 'ch3-t8', name: 'Temperature dependence of rate constant', subTopics: ['Arrhenius equation', 'Activation energy', 'Maxwell Boltzmann\'s Curve'] },
+      { id: 'ch3-t9', name: 'Effect of Catalyst & Collision theory (elementary idea)' },
+    ],
+    totalMilestones: 9
+  },
+  {
+    id: 'ch4',
+    number: 4,
+    title: 'd- and f-Block Elements',
+    topics: [
+      { id: 'ch4-t1', name: 'General introduction & Electronic configuration of transition elements' },
+      { id: 'ch4-t2', name: 'Properties', subTopics: ['Physical', 'Melting Point', 'Boiling Point', 'Enthalpy of Atomization'] },
+      { id: 'ch4-t3', name: 'Ionization enthalpy & Oxidation states' },
+      { id: 'ch4-t4', name: 'Atomic Size & Lanthanoid contraction' },
+      { id: 'ch4-t5', name: 'Colour & Magnetic properties' },
+      { id: 'ch4-t6', name: 'Catalytic property, Interstitial compounds & Alloy formation' },
+      { id: 'ch4-t7', name: 'Preparation and properties of potassium dichromate (K₂Cr₂O₇)' },
+      { id: 'ch4-t8', name: 'Preparation and properties of potassium permanganate (KMnO₄)' },
+      { id: 'ch4-t9', name: 'Lanthanoids', subTopics: ['Electronic configuration', 'Oxidation states', 'Chemical reactivity'] },
+      { id: 'ch4-t10', name: 'Actinoids (IMPORTANT QUESTIONS)' },
+    ],
+    totalMilestones: 10
+  },
+  {
+    id: 'ch5',
+    number: 5,
+    title: 'Coordination Compounds',
+    topics: [
+      { id: 'ch5-t1', name: 'Introduction to coordination compounds' },
+      { id: 'ch5-t2', name: 'Werner\'s theory', subTopics: ['Primary Valency', 'Secondary Valency'] },
+      { id: 'ch5-t3', name: 'Important Terms', subTopics: ['Central atom', 'Ligands', 'Coordination number', 'etc.'] },
+      { id: 'ch5-t4', name: 'IUPAC nomenclature of mononuclear coordination compounds' },
+      { id: 'ch5-t5', name: 'Isomerism in coordination compounds', subTopics: ['Structural Isomerism', 'Stereoisomerism'] },
+      { id: 'ch5-t6', name: 'Bonding in coordination compounds - VBT' },
+      { id: 'ch5-t7', name: 'Crystal Field Theory (CFT)' },
+      { id: 'ch5-t8', name: 'Colour & Stability of complexes' },
+      { id: 'ch5-t9', name: 'Carbonyl Group & application of coordination compounds' },
+    ],
+    totalMilestones: 9
+  },
+  {
+    id: 'ch6',
+    number: 6,
+    title: 'Haloalkanes and Haloarenes',
+    topics: [
+      { id: 'ch6-t1', name: 'Classification, Nomenclature & Nature of carbon-halogen (C–X) bond', subTopics: ['Alkyl', 'Aryl', 'Allylic', 'Vinylic', 'etc.'] },
+      { id: 'ch6-t2', name: 'Methods of preparation of Haloalkanes', subTopics: ['From alcohols', 'Swartz', 'Finkelstein', 'etc.'] },
+      { id: 'ch6-t3', name: 'Physical properties', subTopics: ['Melting point', 'Boiling point', 'etc.'] },
+      { id: 'ch6-t4', name: 'Chemical reactions - Nucleophilic substitution' },
+      { id: 'ch6-t5', name: 'SN1 & SN2 mechanism' },
+      { id: 'ch6-t6', name: 'Elimination reactions & Substitution vs Elimination' },
+      { id: 'ch6-t7', name: 'Reaction with metals', subTopics: ['Wurtz reaction', 'Fittig reaction', 'etc.'] },
+      { id: 'ch6-t8', name: 'Preparation of Haloarenes' },
+      { id: 'ch6-t9', name: 'Chemical Reactions of Haloarenes' },
+      { id: 'ch6-t10', name: 'Polyhalogen compounds' },
+      { id: 'ch6-t11', name: 'Practice Questions' },
+    ],
+    totalMilestones: 11
+  },
+  {
+    id: 'ch7',
+    number: 7,
+    title: 'Alcohols, Phenols and Ethers',
+    topics: [
+      { id: 'ch7-t1', name: 'Classification of Alcohol, Phenol & Ethers' },
+      { id: 'ch7-t2', name: 'Nomenclature of Alcohol, Phenol & Ethers' },
+      { id: 'ch7-t3', name: 'Preparation of Alcohols', subTopics: ['From Alkenes', 'Carbonyl', 'Grignard'] },
+      { id: 'ch7-t4', name: 'Physical properties of Alcohols' },
+      { id: 'ch7-t5', name: 'Chemical reactions of alcohols', subTopics: ['Dehydration', 'Oxidation', 'Esterification', 'etc.'] },
+      { id: 'ch7-t6', name: 'Preparation of Phenols', subTopics: ['Acidic nature', 'reaction', 'Kolbe\'s reaction', 'Bromination'] },
+      { id: 'ch7-t7', name: 'Chemical Reactions of Phenol', subTopics: ['Acidic Nature', 'Reimer-Tiemann', 'Nitration', 'etc.'] },
+      { id: 'ch7-t8', name: 'Preparation of Ethers' },
+      { id: 'ch7-t9', name: 'Chemical Reaction of Ethers' },
+      { id: 'ch7-t10', name: 'Practice Questions' },
+    ],
+    totalMilestones: 10
+  },
+  {
+    id: 'ch8',
+    number: 8,
+    title: 'Aldehydes, Ketones and Carboxylic Acids',
+    topics: [
+      { id: 'ch8-t1', name: 'Nomenclature Of Aldehyde, Ketones' },
+      { id: 'ch8-t2', name: 'Structure and Preparation of carbonyl group' },
+      { id: 'ch8-t3', name: 'Preparation of aldehyde Only' },
+      { id: 'ch8-t4', name: 'Preparation of ketones only' },
+      { id: 'ch8-t5', name: 'Chemical reactions of aldehydes and ketones - Nucleophilic addition reactions', subTopics: ['HCN', 'NaHSO₃', 'etc.'] },
+      { id: 'ch8-t6', name: 'Reduction (Clemensson, etc.) and Oxidation (Tollens, etc.) Reactions' },
+      { id: 'ch8-t7', name: 'Aldol condensation & Cannizzaro reaction' },
+      { id: 'ch8-t8', name: 'Electrophilic substitution in aromatic aldehydes and ketones' },
+      { id: 'ch8-t9', name: 'Preparation of Carboxylic acids' },
+      { id: 'ch8-t10', name: 'Chemical Reactions of Carboxylic Acid' },
+      { id: 'ch8-t11', name: 'Practice Questions' },
+    ],
+    totalMilestones: 11
+  },
+  {
+    id: 'ch9',
+    number: 9,
+    title: 'Amines',
+    topics: [
+      { id: 'ch9-t1', name: 'Structure, Nomenclature & Classification of amines' },
+      { id: 'ch9-t2', name: 'Preparation of Amines', subTopics: ['Reduction', 'Gabriel phthalimide synthesis', 'Hoffmann bromamide', 'etc.'] },
+      { id: 'ch9-t3', name: 'Physical properties and Basic character of amines' },
+      { id: 'ch9-t4', name: 'Chemical reactions', subTopics: ['Alkylation', 'Acylation', 'Benzoylation', 'etc.'] },
+      { id: 'ch9-t5', name: 'Aromatic Amines Reactions', subTopics: ['Nitration', 'Sulphonation', 'etc.'] },
+      { id: 'ch9-t6', name: 'Distinguish Reactions', subTopics: ['Hinsberg', 'Carbylamine', 'Nitrous acid', 'Coupling Reaction'] },
+      { id: 'ch9-t7', name: 'Reactions of Benzene Diazonium Halide' },
+    ],
+    totalMilestones: 7
+  },
+  {
+    id: 'ch10',
+    number: 10,
+    title: 'Biomolecules',
+    topics: [
+      { id: 'ch10-t1', name: 'Carbohydrates - Classification' },
+      { id: 'ch10-t2', name: 'Preparation & Structure of glucose' },
+      { id: 'ch10-t3', name: 'Cyclic form of Glucose' },
+      { id: 'ch10-t4', name: 'Disaccharides and Polysaccharides' },
+      { id: 'ch10-t5', name: 'Amino Acids & Proteins' },
+      { id: 'ch10-t6', name: 'Classification & Denaturation of Proteins', subTopics: ['Primary', 'Secondary', 'etc.', 'Denaturation'] },
+      { id: 'ch10-t7', name: 'Enzymes & Vitamins' },
+      { id: 'ch10-t8', name: 'Nucleic acids', subTopics: ['DNA', 'RNA'] },
+    ],
+    totalMilestones: 8
+  },
+];

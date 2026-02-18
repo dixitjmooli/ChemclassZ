@@ -1,0 +1,53 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  name      String
+  role      String   @default("student") // "student" or "admin"
+  school    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  progress  StudentProgress?
+}
+
+model StudentProgress {
+  id             String   @id @default(cuid())
+  studentId      String   @unique
+  student        User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  overallProgress Int     @default(0)
+  chapters       String   // JSON string storing chapter progress
+  lastUpdated    DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model ChapterPdf {
+  id        String   @id @default(cuid())
+  chapterId String   @unique
+  topicPdfs String   // JSON string storing topic PDF links
+  hotsPdf   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  title     String
+  content   String?
+  published Boolean  @default(false)
+  authorId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
