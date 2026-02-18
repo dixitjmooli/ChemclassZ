@@ -152,6 +152,16 @@ export default function Home() {
       if (response.ok) {
         setAllStudents(data.students || []);
         setAllStudentsProgress(data.progress || {});
+
+        // Build debug message
+        const studentIds = (data.students || []).map((s: any) => `${s.name}:${s.id}`).join(', ');
+        const progressIds = Object.keys(data.progress || {}).join(', ');
+
+        console.log('=== DEBUG INFO ===');
+        console.log('Students loaded:', data.students?.length);
+        console.log('Student IDs:', studentIds);
+        console.log('Progress records:', Object.keys(data.progress || {}).length);
+        console.log('Progress IDs:', progressIds);
       }
     } catch (error) {
       console.error('Error loading students:', error);
@@ -1300,6 +1310,10 @@ export default function Home() {
                           <div>
                             <h3 className="font-semibold text-gray-900">{student.name}</h3>
                             <p className="text-sm text-gray-500">{(student as any)?.school || 'No school'}</p>
+                            <p className="text-xs text-gray-400">ID: {student.id}</p>
+                            <p className={`text-xs font-medium ${progress ? 'text-green-600' : 'text-red-600'}`}>
+                              {progress ? `✓ Progress: ${progress.overallProgress}%` : '✗ No progress found'}
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-4">

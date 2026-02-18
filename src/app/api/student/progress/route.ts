@@ -63,7 +63,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { studentId, chapterId, topicId, field, value } = body;
 
-    console.log('POST update progress:', { studentId, chapterId, topicId, field, value });
+    console.log('========================================');
+    console.log('📝 SAVING STUDENT PROGRESS');
+    console.log('Student ID received:', studentId);
+    console.log('Chapter:', chapterId);
+    console.log('Topic:', topicId);
+    console.log('Field:', field);
+    console.log('Value:', value);
+    console.log('========================================');
 
     if (!studentId || !chapterId || !topicId || !field) {
       return NextResponse.json(
@@ -82,6 +89,8 @@ export async function POST(request: NextRequest) {
 
     // Get or create student progress
     const progressRef = doc(db, 'progress', studentId);
+    console.log('Looking for progress document with ID:', studentId);
+
     const progressDoc = await getDoc(progressRef);
 
     let progressData;
