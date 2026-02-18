@@ -572,6 +572,116 @@ export default function Home() {
     return rank;
   };
 
+  // Calculate class statistics
+  const calculateClassStats = () => {
+    const stats = {
+      // Chapter stats
+      chapterCompletion: [] as { chapter: Chapter; avgCompletion: number; studentCount: number }[],
+      mostCompleted: { chapter: Chapter | null; avgCompletion: 0 },
+      leastCompleted: { chapter: Chapter | null; avgCompletion: 100 },
+
+      // Test stats
+      highestScore: { student: User | null; chapter: Chapter | null; marks: 0 },
+      lowestScore: { student: User | null; chapter: Chapter | null; marks: 100 },
+      testScores: [] as { student: User; chapter: Chapter; marks: number }[],
+
+      // Overall stats
+      classAverage: 0,
+      topStudent: null as User | null,
+      strugglingStudent: null as User | null,
+      totalTestsTaken: 0,
+      testsPassed: 0,
+
+      // Engagement
+      studentsWithZeroProgress: 0,
+      studentsWithFullProgress: 0,
+    };
+
+    // Calculate chapter completion stats
+    CBSE_CHAPTERS.forEach(chapter => {
+      let totalCompletion = 0;
+      let studentCount = 0;
+
+      allStudents.forEach(student => {
+        const progress = allStudentsProgress[student.id];
+        if (progress && progress.chapters[chapter.id]) {
+          const completion = calculateChapterProgress(chapter.id, progress);
+          totalCompletion += completion;
+          studentCount++;
+        }
+      });
+
+      if (studentCount > 0) {
+        const avgCompletion = totalCompletion / studentCount;
+        stats.chapterCompletion.push({
+          chapter,
+          avgCompletion,
+          studentCount
+        });
+      }
+    });
+
+    // Find most and least completed chapters
+    if (stats.chapterCompletion.length > 0) {
+      stats.chapterCompletion.sort((a, b) => b.avgCompletion - a.avgCompletion);
+      stats.mostCompleted = {
+        chapter: stats.chapterCompletion[0].chapter,
+        avgCompletion: stats.chapterCompletion[0].avgCompletion
+      };
+      stats.leastCompleted = {
+        chapter: stats.chapterCompletion[stats.chapterCompletion.length - 1].chapter,
+        avgCompletion: stats.chapterCompletion[stats.chapterCompletion.length - 1].avgCompletion
+      };
+    }
+
+    // Find highest and lowest test scores
+    allStudents.forEach(student => {
+      const progress = allStudentsProgress[student.id];
+      if (!progress) return;
+
+      CBSE_CHAPTERS.forEach(chapter => {
+        const marks = progress.chapters[chapter.id]?.testMarks;
+        if (marks !== undefined) {
+          stats.testScores.push({ student, chapter, marks });
+          if (marks > stats.highestScore.marks) {
+            stats.highestScore = { student, chapter, marks };
+          }
+          if (marks < stats.lowestScore.marks) {
+            stats.lowestScore = { student, chapter, marks };
+          }
+        }
+      });
+    });
+
+    // Calculate class average and test stats
+    let totalProgress = 0;
+    allStudents.forEach(student => {
+      const progress = allStudentsProgress[student.id];
+      if (progress) {
+        totalProgress += progress.overallProgress || 0;
+        stats.totalTestsTaken += Object.values(progress.chapters || {}).filter(c => c.testMarks !== undefined).length;
+        stats.testsPassed += Object.values(progress.chapters || {}).filter(c => c.testMarks !== undefined && c.testMarks >= 40).length;
+
+        if (progress.overallProgress === 0) {
+          stats.studentsWithZeroProgress++;
+        } else if (progress.overallProgress === 100) {
+          stats.studentsWithFullProgress++;
+        }
+      }
+    });
+
+    stats.classAverage = allStudents.length > 0 ? totalProgress / allStudents.length : 0;
+
+    // Find top and struggling students
+    if (allStudents.length > 0) {
+      const sortedStudents = [...allStudents].sort((a, b) => calculateStudentRank(b.id) - calculateStudentRank(a.id));
+      stats.topStudent = sortedStudents[0];
+      stats.strugglingStudent = sortedStudents[sortedStudents.length - 1];
+    }
+
+    return stats;
+  };
+
   // Render functions
   const renderLogin = () => (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-4">
@@ -1075,24 +1185,242 @@ export default function Home() {
           </Card>
         </div>
 
-        {/* Debug & Refresh Section */}
-        <Card className="p-4 bg-blue-50 border-2 border-blue-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-900">Debug Info</p>
-              <p className="text-xs text-blue-700">
-                Loaded {allStudents.length} students • {Object.keys(allStudentsProgress).length} progress records
-              </p>
+        {/* Class Statistics */}
+        <Card className="p-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5" />
+              Class Statistics
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* Left Column - Chapter Stats */}
+              <div className="space-y-4">
+                {/* Most Completed Chapter */}
+                <div className="bg-green-50 p-4 rounded-lg border-2 border-green-200">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                      <CheckCircle2 className="text-green-600 w-5 h-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-green-700 font-medium">MOST COMPLETED CHAPTER</p>
+                      {(() => {
+                        const stats = calculateClassStats();
+                        if (stats.mostCompleted.chapter) {
+                          return (
+                            <>
+                              <h4 className="font-bold text-gray-900">{stats.mostCompleted.chapter.title}</h4>
+                              <p className="text-sm text-gray-600">
+                                {stats.mostCompleted.avgCompletion.toFixed(1)}% average completion
+                              </p>
+                            </>
+                          );
+                        }
+                        return <p className="text-sm text-gray-500">No data yet</p>;
+                      })()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Least Completed Chapter */}
+                <div className="bg-red-50 p-4 rounded-lg border-2 border-red-200">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                      <Circle className="text-red-600 w-5 h-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-red-700 font-medium">LEAST COMPLETED CHAPTER</p>
+                      {(() => {
+                        const stats = calculateClassStats();
+                        if (stats.leastCompleted.chapter) {
+                          return (
+                            <>
+                              <h4 className="font-bold text-gray-900">{stats.leastCompleted.chapter.title}</h4>
+                              <p className="text-sm text-gray-600">
+                                {stats.leastCompleted.avgCompletion.toFixed(1)}% average completion
+                              </p>
+                            </>
+                          );
+                        }
+                        return <p className="text-sm text-gray-500">No data yet</p>;
+                      })()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Highest Test Score */}
+                <div className="bg-yellow-50 p-4 rounded-lg border-2 border-yellow-200">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                      <Trophy className="text-yellow-600 w-5 h-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-yellow-700 font-medium">HIGHEST TEST SCORE</p>
+                      {(() => {
+                        const stats = calculateClassStats();
+                        if (stats.highestScore.student && stats.highestScore.chapter) {
+                          return (
+                            <>
+                              <h4 className="font-bold text-gray-900">{stats.highestScore.student.name}</h4>
+                              <p className="text-sm text-gray-600">
+                                {stats.highestScore.chapter.title} - {stats.highestScore.marks}/100
+                              </p>
+                            </>
+                          );
+                        }
+                        return <p className="text-sm text-gray-500">No tests taken yet</p>;
+                      })()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lowest Test Score */}
+                <div className="bg-orange-50 p-4 rounded-lg border-2 border-orange-200">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                      <TrendingDown className="text-orange-600 w-5 h-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-orange-700 font-medium">LOWEST TEST SCORE</p>
+                      {(() => {
+                        const stats = calculateClassStats();
+                        if (stats.lowestScore.student && stats.lowestScore.chapter) {
+                          return (
+                            <>
+                              <h4 className="font-bold text-gray-900">{stats.lowestScore.student.name}</h4>
+                              <p className="text-sm text-gray-600">
+                                {stats.lowestScore.chapter.title} - {stats.lowestScore.marks}/100
+                              </p>
+                            </>
+                          );
+                        }
+                        return <p className="text-sm text-gray-500">No tests taken yet</p>;
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column - Overall Stats */}
+              <div className="space-y-4">
+                {/* Class Average Progress */}
+                <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Target className="text-blue-600 w-5 h-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-blue-700 font-medium">CLASS AVERAGE PROGRESS</p>
+                      <h4 className="text-3xl font-bold text-gray-900">
+                        {calculateClassStats().classAverage.toFixed(1)}%
+                      </h4>
+                    </div>
+                  </div>
+                  <Progress 
+                    value={calculateClassStats().classAverage} 
+                    className="h-3 mt-2"
+                  />
+                </div>
+
+                {/* Test Stats */}
+                <div className="bg-purple-50 p-4 rounded-lg border-2 border-purple-200">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                      <ClipboardCheck className="text-purple-600 w-5 h-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-purple-700 font-medium">TEST PERFORMANCE</p>
+                      <div className="text-2xl font-bold text-gray-900">
+                        {(() => {
+                          const stats = calculateClassStats();
+                          const passRate = stats.totalTestsTaken > 0 
+                            ? Math.round((stats.testsPassed / stats.totalTestsTaken) * 100) 
+                            : 0;
+                          return `${stats.testsPassed}/${stats.totalTestsTaken} passed`;
+                        })()}
+                      </div>
+                      <p className="text-xs text-gray-600">
+                        Pass Rate: {(() => {
+                          const stats = calculateClassStats();
+                          const passRate = stats.totalTestsTaken > 0 
+                            ? Math.round((stats.testsPassed / stats.totalTestsTaken) * 100) 
+                            : 0;
+                          return `${passRate}%`;
+                        })()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Top & Struggling Students */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-emerald-50 p-3 rounded-lg border-2 border-emerald-200 text-center">
+                    <p className="text-xs text-emerald-700 font-medium">TOP PERFORMER</p>
+                    {(() => {
+                      const stats = calculateClassStats();
+                      if (stats.topStudent) {
+                        return (
+                          <>
+                            <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                              <Trophy className="text-emerald-600 w-5 h-5" />
+                            </div>
+                            <h4 className="font-bold text-gray-900 text-sm truncate">{stats.topStudent.name}</h4>
+                            <p className="text-xs text-gray-600">Rank #1</p>
+                          </>
+                        );
+                      }
+                      return <p className="text-xs text-gray-500">-</p>;
+                    })()}
+                  </div>
+                  <div className="bg-rose-50 p-3 rounded-lg border-2 border-rose-200 text-center">
+                    <p className="text-xs text-rose-700 font-medium">NEEDS HELP</p>
+                    {(() => {
+                      const stats = calculateClassStats();
+                      if (stats.strugglingStudent) {
+                        const rank = calculateStudentRank(stats.strugglingStudent.id);
+                        return (
+                          <>
+                            <div className="w-10 h-10 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                              <TrendingDown className="text-rose-600 w-5 h-5" />
+                            </div>
+                            <h4 className="font-bold text-gray-900 text-sm truncate">{stats.strugglingStudent.name}</h4>
+                            <p className="text-xs text-gray-600">Rank #{rank}</p>
+                          </>
+                        );
+                      }
+                      return <p className="text-xs text-gray-500">-</p>;
+                    })()}
+                  </div>
+                </div>
+
+                {/* Engagement Stats */}
+                <div className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200">
+                  <p className="text-xs text-gray-700 font-medium mb-3">ENGAGEMENT</p>
+                  <div className="grid grid-cols-2 gap-3 text-center">
+                    <div>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {(() => {
+                          const stats = calculateClassStats();
+                          return stats.studentsWithZeroProgress;
+                        })()}
+                      </p>
+                      <p className="text-xs text-gray-600">Zero Progress</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {(() => {
+                          const stats = calculateClassStats();
+                          return stats.studentsWithFullProgress;
+                        })()}
+                      </p>
+                      <p className="text-xs text-gray-600">Completed</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <Button
-              onClick={loadAllStudents}
-              variant="outline"
-              className="bg-white hover:bg-blue-100 border-blue-300 text-blue-700"
-              size="sm"
-            >
-              Refresh Students
-            </Button>
-          </div>
+          </CardContent>
         </Card>
 
         {/* Test Marks Analysis */}
