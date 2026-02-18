@@ -65,6 +65,9 @@ export default function Home() {
   const [studentDetailViewOpen, setStudentDetailViewOpen] = useState(false);
   const [selectedStudentForView, setSelectedStudentForView] = useState<User | null>(null);
 
+  // Debug info for admin
+  const [debugInfo, setDebugInfo] = useState<string>('');
+
   // Test Marks - Chapter Selection
   const [selectedChapterForMarks, setSelectedChapterForMarks] = useState<Chapter | null>(null);
   const [chapterMarksInputs, setChapterMarksInputs] = useState<Record<string, string>>({});
@@ -163,6 +166,8 @@ export default function Home() {
 
   // Load all students for admin
   const loadAllStudents = async () => {
+    setDebugInfo('Loading...');
+
     try {
       console.log('========================================');
       console.log('🔄 Loading all students for admin...');
@@ -185,13 +190,17 @@ export default function Home() {
         console.log('✅ Progress records loaded:', Object.keys(data.progress || {}).length);
         console.log('   Progress IDs:', Object.keys(data.progress || {}));
 
+        // Build debug message
+        const progressCount = Object.keys(data.progress || {}).length;
+        const studentsWithoutProgress = data.students?.filter((s: any) => !data.progress[s.id]) || [];
+
+        const debugMsg = `Students: ${data.students?.length || 0}\nProgress Records: ${progressCount}\nStudents Without Progress: ${studentsWithoutProgress.length}\n\nStudent IDs:\n${data.students?.map((s: any) => `- ${s.name}: ${s.id}`).join('\n') || 'None'}\n\nProgress IDs:\n${Object.keys(data.progress || {}).join('\n') || 'None'}`;
+
+        setDebugInfo(debugMsg);
+
         // Alert user about results
         if (data.students && data.students.length > 0) {
-          const progressCount = Object.keys(data.progress || {}).length;
           console.log(`✅ Loaded ${data.students.length} students with ${progressCount} progress records`);
-
-          // Show alert with summary
-          const studentsWithoutProgress = data.students.filter((s: any) => !data.progress[s.id]);
 
           if (progressCount === 0) {
             alert(`⚠️ No progress found for any student!\n\nStudents loaded: ${data.students.length}\n\nThis means students haven't saved any progress yet, or there's an ID mismatch.\n\nNext steps:\n1. Have a student login and check some topics\n2. Then come back and click 'Reload Progress'`);
@@ -202,15 +211,18 @@ export default function Home() {
           }
         } else {
           console.warn('⚠️ No students found in database');
+          setDebugInfo('No students found!');
           alert(`No students found. If you expect to see students, please check:\n1. Are there students in the database?\n2. Do they have role="student"?`);
         }
       } else {
         console.error('❌ API returned error:', data.error);
+        setDebugInfo(`Error: ${data.error}`);
         alert(`Error loading students: ${data.error || 'Unknown error'}`);
       }
       console.log('========================================');
     } catch (error) {
       console.error('❌ Error loading students:', error);
+      setDebugInfo(`Error: ${error}`);
       alert(`Failed to load students: ${error}`);
     }
   };
@@ -1348,6 +1360,13 @@ export default function Home() {
       </div>
       {renderAdminNav()}
       <div className="max-w-6xl mx-auto p-6">
+        {/* Debug Info Card - Only visible in admin Students section */}
+        {debugInfo && (
+          <Card className="mb-4 p-4 bg-yellow-50 border-2 border-yellow-200">
+            <h4 className="font-semibold text-yellow-900 mb-2 text-sm">Debug Information</h4>
+            <pre className="text-xs text-yellow-800 whitespace-pre-wrap font-mono">{debugInfo}</pre>
+          </Card>
+        )}
         <Card className="p-6">
           <CardHeader>
             <div className="flex items-center justify-between">
