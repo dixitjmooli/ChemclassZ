@@ -1323,29 +1323,6 @@ ${Object.keys(data.progress || {}).join('\n')}
             </div>
           </CardHeader>
           <CardContent>
-            {/* Simple Debug Info */}
-            <div className="mb-4 p-4 bg-gray-100 rounded-lg text-xs font-mono">
-              <div className="font-bold mb-2">Debug Info:</div>
-              <div>Students loaded: {allStudents.length}</div>
-              <div>Progress records: {Object.keys(allStudentsProgress).length}</div>
-              {allStudents.length > 0 && (
-                <>
-                  <div className="mt-2 font-bold">Student IDs:</div>
-                  {allStudents.map(s => (
-                    <div key={s.id}>{s.name}: {s.id}</div>
-                  ))}
-                </>
-              )}
-              {Object.keys(allStudentsProgress).length > 0 && (
-                <>
-                  <div className="mt-2 font-bold">Progress IDs:</div>
-                  {Object.keys(allStudentsProgress).map(id => (
-                    <div key={id}>{id}: {allStudentsProgress[id]?.overallProgress}%</div>
-                  ))}
-                </>
-              )}
-            </div>
-
             <ScrollArea className="h-[600px]">
               <div className="space-y-3">
                 {allStudents.map((student) => {
