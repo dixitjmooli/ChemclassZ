@@ -153,18 +153,16 @@ export default function Home() {
         setAllStudents(data.students || []);
         setAllStudentsProgress(data.progress || {});
 
-        // Build debug message
-        const studentIds = (data.students || []).map((s: any) => `${s.name}:${s.id}`).join(', ');
-        const progressIds = Object.keys(data.progress || {}).join(', ');
+        // Show alert with data
+        const studentsWithProgress = (data.students || []).filter((s: any) => data.progress[s.id]);
+        const studentNames = (data.students || []).map((s: any) => s.name).join(', ');
+        const studentsWithoutProgress = (data.students || []).filter((s: any) => !data.progress[s.id]).map((s: any) => s.name).join(', ');
 
-        console.log('=== DEBUG INFO ===');
-        console.log('Students loaded:', data.students?.length);
-        console.log('Student IDs:', studentIds);
-        console.log('Progress records:', Object.keys(data.progress || {}).length);
-        console.log('Progress IDs:', progressIds);
+        alert(`ADMIN DATA LOADED:\n\nTotal Students: ${data.students?.length || 0}\nStudents WITH Progress: ${studentsWithProgress.length}\nStudents WITHOUT Progress: ${(data.students?.length || 0) - studentsWithProgress.length}\n\nAll Students: ${studentNames}\n\nNo Progress: ${studentsWithoutProgress || 'none'}`);
       }
     } catch (error) {
       console.error('Error loading students:', error);
+      alert(`ERROR: ${error}`);
     }
   };
 
