@@ -123,9 +123,12 @@ export default function Home() {
             const data = await res.json();
             const studentIds = data.students?.map((s: any) => `${s.name}=${s.id}`).join('\n') || 'none';
             const progressIds = Object.keys(data.progress || {}).join('\n') || 'none';
-            alert(`DEBUG INFO:\n\nStudent IDs:\n${studentIds}\n\nProgress IDs:\n${progressIds}\n\nStudents: ${data.students?.length}\nProgress: ${Object.keys(data.progress || {}).length}`);
+            const debug = data.debug || {};
+            
+            alert(`DEBUG INFO:\n\nStudent IDs:\n${studentIds}\n\nProgress IDs:\n${progressIds}\n\nStudents: ${data.students?.length}\nProgress found in DB: ${debug.totalProgressInDb || 0}\nProgress matched: ${debug.matchedProgress || 0}`);
           } catch (e) {
             console.error(e);
+            alert('Debug error: ' + e);
           }
         }, 1000);
       }
