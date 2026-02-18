@@ -45,6 +45,13 @@ export default function Home() {
   const [studentProgress, setStudentProgress] = useState<StudentProgress | null>(null);
   const [allStudents, setAllStudents] = useState<User[]>([]);
   const [allStudentsProgress, setAllStudentsProgress] = useState<Record<string, StudentProgress>>({});
+
+  // Load admin data when admin views are accessed
+  useEffect(() => {
+    if (view === 'adminDashboard' || view === 'adminStudents' || view === 'adminTestMarks' || view === 'adminPdf') {
+      loadAllStudents();
+    }
+  }, [view]);
   const [pdfManagerOpen, setPdfManagerOpen] = useState(false);
   const [testMarksModalOpen, setTestMarksModalOpen] = useState(false);
   const [selectedStudentForMarks, setSelectedStudentForMarks] = useState<User | null>(null);
@@ -112,8 +119,6 @@ export default function Home() {
         }
         setView('studentHome');
       } else {
-        // Load all students BEFORE showing admin panel
-        await loadAllStudents();
         setView('adminDashboard');
       }
     } catch (error) {
