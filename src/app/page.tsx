@@ -115,6 +115,19 @@ export default function Home() {
         setView('adminDashboard');
         // Load all students
         loadAllStudents();
+
+        // Show debug info
+        setTimeout(async () => {
+          try {
+            const res = await fetch('/api/admin/students/progress');
+            const data = await res.json();
+            const studentIds = data.students?.map((s: any) => `${s.name}=${s.id}`).join('\n') || 'none';
+            const progressIds = Object.keys(data.progress || {}).join('\n') || 'none';
+            alert(`DEBUG INFO:\n\nStudent IDs:\n${studentIds}\n\nProgress IDs:\n${progressIds}\n\nStudents: ${data.students?.length}\nProgress: ${Object.keys(data.progress || {}).length}`);
+          } catch (e) {
+            console.error(e);
+          }
+        }, 1000);
       }
     } catch (error) {
       console.error('Login error:', error);
