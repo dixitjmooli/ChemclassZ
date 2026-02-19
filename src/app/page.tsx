@@ -577,8 +577,8 @@ export default function Home() {
     const stats = {
       // Chapter stats
       chapterCompletion: [] as { chapter: Chapter; avgCompletion: number; studentCount: number }[],
-      mostCompleted: { chapter: Chapter | null; avgCompletion: 0 },
-      leastCompleted: { chapter: Chapter | null; avgCompletion: 100 },
+      mostCompleted: { chapter: null as Chapter | null, avgCompletion: 0 },
+      leastCompleted: { chapter: null as Chapter | null, avgCompletion: 100 },
 
       // Test stats
       highestScore: { student: User | null; chapter: Chapter | null; marks: 0 },
