@@ -510,20 +510,34 @@ export const updateTestMarks = async (
 // ==================== USERS ====================
 
 export const getAllStudents = async (): Promise<User[]> => {
-  const usersRef = collection(db, COLLECTIONS.USERS);
-  const snapshot = await getDocs(usersRef);
-  
-  // Filter locally to avoid index requirement
-  return snapshot.docs
-    .filter((doc) => doc.data().role === 'student')
-    .map((doc) => ({
-      id: doc.id,
-      name: doc.data().name,
-      username: doc.data().username,
-      role: doc.data().role,
-      school: doc.data().school,
-      createdAt: doc.data().createdAt?.toDate() || new Date()
-    }));
+  try {
+    const usersRef = collection(db, COLLECTIONS.USERS);
+    const snapshot = await getDocs(usersRef);
+    
+    console.log('Total users found:', snapshot.docs.length);
+    
+    // Filter locally to avoid index requirement
+    const students = snapshot.docs
+      .filter((doc) => doc.data().role === 'student')
+      .map((doc) => {
+        const data = doc.data();
+        console.log('Student:', data.username, data.role);
+        return {
+          id: doc.id,
+          name: data.name,
+          username: data.username,
+          role: data.role,
+          school: data.school,
+          createdAt: data.createdAt?.toDate() || new Date()
+        };
+      });
+    
+    console.log('Filtered students:', students.length);
+    return students;
+  } catch (error) {
+    console.error('Error fetching students:', error);
+    throw error;
+  }
 };
 
 // Subscribe to all students with real-time updates
