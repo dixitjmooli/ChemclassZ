@@ -546,20 +546,44 @@ export const subscribeToAllStudents = (
 ): (() => void) => {
   const usersRef = collection(db, COLLECTIONS.USERS);
   
-  return onSnapshot(usersRef, (snapshot) => {
-    // Filter locally to avoid index requirement
-    const students: User[] = snapshot.docs
-      .filter((doc) => doc.data().role === 'student')
-      .map((doc) => ({
-        id: doc.id,
-        name: doc.data().name,
-        username: doc.data().username,
-        role: doc.data().role,
-        school: doc.data().school,
-        createdAt: doc.data().createdAt?.toDate() || new Date()
-      }));
-    callback(students);
-  });
+  return onSnapshot(
+    usersRef, 
+    (snapshot) => {
+      console.log('=== STUDENT SNAPSHOT ===');
+      console.log('Total docs received:', snapshot.docs.length);
+      
+      // Filter locally to avoid index requirement
+      const students: User[] = snapshot.docs
+        .filter((doc) => {
+          const data = doc.data();
+          const isStudent = data.role === 'student';
+          console.log(`Doc ${doc.id}: role=${data.role}, isStudent=${isStudent}`);
+          return isStudent;
+        })
+        .map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: data.name,
+            username: data.username,
+            role: data.role,
+            school: data.school,
+            createdAt: data.createdAt?.toDate() || new Date()
+          };
+        });
+      
+      console.log('Filtered students count:', students.length);
+      callback(students);
+    },
+    (error) => {
+      console.error('=== STUDENT SNAPSHOT ERROR ===');
+      console.error('Error:', error);
+      console.error('Error message:', error.message);
+      console.error('Error code:', error.code);
+      // Still call callback with empty array on error
+      callback([]);
+    }
+  );
 };
 
 export const getAllProgress = async (): Promise<Progress[]> => {

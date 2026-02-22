@@ -36,7 +36,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/lib/store';
-import { createUser, deleteUser, initializeProgress, getAllStudents } from '@/lib/firebase-service';
+import { createUser, deleteUser, initializeProgress, getAllStudents, checkFirebaseConnection } from '@/lib/firebase-service';
 import { useToast } from '@/hooks/use-toast';
 import {
   Plus,
@@ -48,6 +48,9 @@ import {
   School,
   Calendar,
   RefreshCw,
+  AlertCircle,
+  CheckCircle,
+  WifiOff,
 } from 'lucide-react';
 
 export function StudentsTable() {
@@ -57,22 +60,69 @@ export function StudentsTable() {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<{
+    lastRefresh: string | null;
+    connectionStatus: 'checking' | 'connected' | 'error';
+    errorMessage: string | null;
+    rawStudentCount: number | null;
+  }>({
+    lastRefresh: null,
+    connectionStatus: 'checking',
+    errorMessage: null,
+    rawStudentCount: null,
+  });
   const { toast } = useToast();
+
+  // Check connection on mount
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        const isConnected = await checkFirebaseConnection();
+        setDebugInfo(prev => ({
+          ...prev,
+          connectionStatus: isConnected ? 'connected' : 'error',
+          errorMessage: isConnected ? null : 'Cannot connect to Firebase'
+        }));
+      } catch (error) {
+        setDebugInfo(prev => ({
+          ...prev,
+          connectionStatus: 'error',
+          errorMessage: error instanceof Error ? error.message : 'Connection check failed'
+        }));
+      }
+    };
+    checkConnection();
+  }, []);
 
   // Manual refresh function
   const handleRefresh = async () => {
     setIsRefreshing(true);
+    setDebugInfo(prev => ({ ...prev, connectionStatus: 'checking' }));
     try {
       const students = await getAllStudents();
       setAllStudents(students);
+      const now = new Date().toLocaleTimeString();
+      setDebugInfo(prev => ({
+        ...prev,
+        lastRefresh: now,
+        connectionStatus: 'connected',
+        rawStudentCount: students.length,
+        errorMessage: null,
+      }));
       toast({
         title: 'Refreshed',
-        description: `Found ${students.length} students`,
+        description: `Found ${students.length} students at ${now}`,
       });
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Failed to refresh students';
+      setDebugInfo(prev => ({
+        ...prev,
+        connectionStatus: 'error',
+        errorMessage: errorMsg,
+      }));
       toast({
         title: 'Error',
-        description: 'Failed to refresh students',
+        description: errorMsg,
         variant: 'destructive',
       });
     } finally {
@@ -290,6 +340,59 @@ export function StudentsTable() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Debug Panel */}
+      <Card className="bg-gray-50 border-dashed">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Firebase:</span>
+              {debugInfo.connectionStatus === 'checking' ? (
+                <Badge variant="outline" className="bg-gray-100">
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  Checking...
+                </Badge>
+              ) : debugInfo.connectionStatus === 'connected' ? (
+                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                  Connected
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                  <WifiOff className="w-3 h-3 mr-1" />
+                  Error
+                </Badge>
+              )}
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Students in UI:</span>
+              <Badge variant="outline">{allStudents.length}</Badge>
+            </div>
+            
+            {debugInfo.rawStudentCount !== null && (
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground">Last fetch:</span>
+                <Badge variant="outline">{debugInfo.rawStudentCount}</Badge>
+              </div>
+            )}
+            
+            {debugInfo.lastRefresh && (
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground">Last refresh:</span>
+                <span className="font-mono text-xs">{debugInfo.lastRefresh}</span>
+              </div>
+            )}
+            
+            {debugInfo.errorMessage && (
+              <div className="flex items-center gap-2 text-red-600">
+                <AlertCircle className="w-4 h-4" />
+                <span className="font-mono text-xs">{debugInfo.errorMessage}</span>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Search */}
       <div className="relative">
