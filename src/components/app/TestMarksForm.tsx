@@ -30,14 +30,15 @@ import {
   Loader2,
   Users,
   BookOpen,
+  CheckCircle,
 } from 'lucide-react';
 
 export function TestMarksForm() {
   const { chapters, allStudents, allTestMarks } = useAppStore();
   const [selectedChapterId, setSelectedChapterId] = useState<string>('');
   const [marks, setMarks] = useState<Record<string, number>>({});
-  const [isSaving, setIsSaving] = useState<string | null>(null);
-  const [hasChanges, setHasChanges] = useState(false);
+  const [originalMarks, setOriginalMarks] = useState<Record<string, number>>({});
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
   // Load marks when chapter changes
@@ -51,55 +52,34 @@ export function TestMarksForm() {
         chapterMarks[student.id] = existingMark?.marks || 0;
       });
       setMarks(chapterMarks);
-      setHasChanges(false);
+      setOriginalMarks(chapterMarks);
     }
   }, [selectedChapterId, allStudents, allTestMarks]);
+
+  // Check if there are unsaved changes
+  const hasChanges = Object.keys(marks).some(
+    (studentId) => marks[studentId] !== originalMarks[studentId]
+  );
 
   const handleMarkChange = (studentId: string, value: string) => {
     const numValue = Math.min(100, Math.max(0, parseInt(value) || 0));
     setMarks((prev) => ({ ...prev, [studentId]: numValue }));
-    setHasChanges(true);
-  };
-
-  const handleSaveMark = async (studentId: string) => {
-    if (!selectedChapterId) return;
-    
-    const markValue = marks[studentId];
-    if (isNaN(markValue)) return;
-    
-    setIsSaving(studentId);
-    try {
-      await updateTestMarks(studentId, selectedChapterId, markValue);
-      setHasChanges(false);
-      toast({
-        title: 'Saved',
-        description: 'Test marks saved successfully',
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to save marks',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSaving(null);
-    }
   };
 
   const handleSaveAll = async () => {
     if (!selectedChapterId) return;
     
-    setIsSaving('all');
+    setIsSaving(true);
     try {
       await Promise.all(
         Object.entries(marks).map(([studentId, markValue]) =>
           updateTestMarks(studentId, selectedChapterId, markValue)
         )
       );
-      setHasChanges(false);
+      setOriginalMarks(marks);
       toast({
-        title: 'All Saved',
-        description: 'All test marks saved successfully',
+        title: 'Success!',
+        description: `Saved marks for ${Object.keys(marks).length} students`,
       });
     } catch (error) {
       toast({
@@ -108,7 +88,7 @@ export function TestMarksForm() {
         variant: 'destructive',
       });
     } finally {
-      setIsSaving(null);
+      setIsSaving(false);
     }
   };
 
@@ -127,11 +107,11 @@ export function TestMarksForm() {
         <p className="text-muted-foreground">Enter chapter test marks for students</p>
       </div>
 
-      {/* Chapter Selection */}
+      {/* Chapter Selection & Save Button */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
-            <div className="flex-1 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="flex-1 w-full sm:w-auto max-w-md">
               <label className="text-sm font-medium mb-2 block">Select Chapter</label>
               <Select value={selectedChapterId} onValueChange={setSelectedChapterId}>
                 <SelectTrigger>
@@ -147,24 +127,36 @@ export function TestMarksForm() {
               </Select>
             </div>
             
-            {selectedChapterId && hasChanges && (
-              <Button
-                onClick={handleSaveAll}
-                disabled={isSaving === 'all'}
-                className="bg-purple-600 hover:bg-purple-700"
-              >
-                {isSaving === 'all' ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Saving All...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    Save All
-                  </>
+            {selectedChapterId && (
+              <div className="flex items-center gap-3">
+                {hasChanges && (
+                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                    Unsaved changes
+                  </Badge>
                 )}
-              </Button>
+                <Button
+                  onClick={handleSaveAll}
+                  disabled={isSaving || !hasChanges}
+                  className={`min-w-[140px] ${hasChanges ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-400'}`}
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : hasChanges ? (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Save All Marks
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Saved
+                    </>
+                  )}
+                </Button>
+              </div>
             )}
           </div>
         </CardContent>
@@ -199,48 +191,40 @@ export function TestMarksForm() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-12">#</TableHead>
                       <TableHead>Student</TableHead>
                       <TableHead>School</TableHead>
                       <TableHead className="text-center">Marks (0-100)</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {allStudents.map((student) => {
+                    {allStudents.map((student, index) => {
                       const currentMark = marks[student.id] ?? 0;
+                      const hasChanged = marks[student.id] !== originalMarks[student.id];
                       
                       return (
-                        <TableRow key={student.id}>
+                        <TableRow 
+                          key={student.id}
+                          className={hasChanged ? 'bg-amber-50' : ''}
+                        >
+                          <TableCell className="text-muted-foreground">{index + 1}</TableCell>
                           <TableCell className="font-medium">{student.name}</TableCell>
                           <TableCell>{student.school}</TableCell>
                           <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              <Input
-                                type="number"
-                                min="0"
-                                max="100"
-                                value={currentMark}
-                                onChange={(e) => handleMarkChange(student.id, e.target.value)}
-                                className="w-20 text-center"
-                              />
-                              <Badge variant="outline" className={getMarkColor(currentMark)}>
-                                {currentMark >= 40 ? 'Pass' : 'Fail'}
-                              </Badge>
-                            </div>
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={currentMark}
+                              onChange={(e) => handleMarkChange(student.id, e.target.value)}
+                              className={`w-24 text-center mx-auto ${hasChanged ? 'border-amber-400 bg-white' : ''}`}
+                            />
                           </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleSaveMark(student.id)}
-                              disabled={isSaving === student.id}
-                            >
-                              {isSaving === student.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Save className="w-4 h-4" />
-                              )}
-                            </Button>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className={getMarkColor(currentMark)}>
+                              {currentMark >= 40 ? 'Pass' : 'Fail'}
+                            </Badge>
                           </TableCell>
                         </TableRow>
                       );
