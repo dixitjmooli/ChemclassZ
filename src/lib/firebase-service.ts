@@ -511,28 +511,12 @@ export const updateTestMarks = async (
 
 export const getAllStudents = async (): Promise<User[]> => {
   const usersRef = collection(db, COLLECTIONS.USERS);
-  const q = query(usersRef, where('role', '==', 'student'));
-  const snapshot = await getDocs(q);
+  const snapshot = await getDocs(usersRef);
   
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    name: doc.data().name,
-    username: doc.data().username,
-    role: doc.data().role,
-    school: doc.data().school,
-    createdAt: doc.data().createdAt?.toDate() || new Date()
-  }));
-};
-
-// Subscribe to all students with real-time updates
-export const subscribeToAllStudents = (
-  callback: (students: User[]) => void
-): (() => void) => {
-  const usersRef = collection(db, COLLECTIONS.USERS);
-  const q = query(usersRef, where('role', '==', 'student'));
-  
-  return onSnapshot(q, (snapshot) => {
-    const students: User[] = snapshot.docs.map((doc) => ({
+  // Filter locally to avoid index requirement
+  return snapshot.docs
+    .filter((doc) => doc.data().role === 'student')
+    .map((doc) => ({
       id: doc.id,
       name: doc.data().name,
       username: doc.data().username,
@@ -540,6 +524,26 @@ export const subscribeToAllStudents = (
       school: doc.data().school,
       createdAt: doc.data().createdAt?.toDate() || new Date()
     }));
+};
+
+// Subscribe to all students with real-time updates
+export const subscribeToAllStudents = (
+  callback: (students: User[]) => void
+): (() => void) => {
+  const usersRef = collection(db, COLLECTIONS.USERS);
+  
+  return onSnapshot(usersRef, (snapshot) => {
+    // Filter locally to avoid index requirement
+    const students: User[] = snapshot.docs
+      .filter((doc) => doc.data().role === 'student')
+      .map((doc) => ({
+        id: doc.id,
+        name: doc.data().name,
+        username: doc.data().username,
+        role: doc.data().role,
+        school: doc.data().school,
+        createdAt: doc.data().createdAt?.toDate() || new Date()
+      }));
     callback(students);
   });
 };
