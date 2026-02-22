@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,7 +36,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/lib/store';
-import { createUser, deleteUser, initializeProgress } from '@/lib/firebase-service';
+import { createUser, deleteUser, initializeProgress, getAllStudents } from '@/lib/firebase-service';
 import { useToast } from '@/hooks/use-toast';
 import {
   Plus,
@@ -47,15 +47,38 @@ import {
   Loader2,
   School,
   Calendar,
+  RefreshCw,
 } from 'lucide-react';
 
 export function StudentsTable() {
-  const { allStudents, allProgress } = useAppStore();
+  const { allStudents, allProgress, setAllStudents } = useAppStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const { toast } = useToast();
+
+  // Manual refresh function
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      const students = await getAllStudents();
+      setAllStudents(students);
+      toast({
+        title: 'Refreshed',
+        description: `Found ${students.length} students`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to refresh students',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Form state
   const [formData, setFormData] = useState({
@@ -149,16 +172,26 @@ export function StudentsTable() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Students</h1>
-          <p className="text-muted-foreground">Manage your students</p>
+          <p className="text-muted-foreground">Manage your students ({allStudents.length} total)</p>
         </div>
         
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-purple-600 hover:bg-purple-700">
-              <UserPlus className="w-4 h-4 mr-2" />
-              Add Student
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-purple-600 hover:bg-purple-700">
+                <UserPlus className="w-4 h-4 mr-2" />
+                Add Student
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Add New Student</DialogTitle>
@@ -222,6 +255,7 @@ export function StudentsTable() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Stats */}
