@@ -516,6 +516,17 @@ export const getAllStudents = async (): Promise<User[]> => {
     
     console.log('Total users found:', snapshot.docs.length);
     
+    // Helper to safely convert to Date
+    const toDate = (value: unknown): Date => {
+      if (!value) return new Date();
+      if (typeof value === 'object' && value !== null && 'toDate' in value && typeof (value as { toDate: () => Date }).toDate === 'function') {
+        return (value as { toDate: () => Date }).toDate();
+      }
+      if (value instanceof Date) return value;
+      if (typeof value === 'string' || typeof value === 'number') return new Date(value);
+      return new Date();
+    };
+    
     // Filter locally to avoid index requirement
     const students = snapshot.docs
       .filter((doc) => doc.data().role === 'student')
@@ -528,7 +539,7 @@ export const getAllStudents = async (): Promise<User[]> => {
           username: data.username,
           role: data.role,
           school: data.school,
-          createdAt: data.createdAt?.toDate() || new Date()
+          createdAt: toDate(data.createdAt)
         };
       });
     
@@ -545,6 +556,17 @@ export const subscribeToAllStudents = (
   callback: (students: User[]) => void
 ): (() => void) => {
   const usersRef = collection(db, COLLECTIONS.USERS);
+  
+  // Helper to safely convert to Date
+  const toDate = (value: unknown): Date => {
+    if (!value) return new Date();
+    if (typeof value === 'object' && value !== null && 'toDate' in value && typeof (value as { toDate: () => Date }).toDate === 'function') {
+      return (value as { toDate: () => Date }).toDate();
+    }
+    if (value instanceof Date) return value;
+    if (typeof value === 'string' || typeof value === 'number') return new Date(value);
+    return new Date();
+  };
   
   return onSnapshot(
     usersRef, 
@@ -568,7 +590,7 @@ export const subscribeToAllStudents = (
             username: data.username,
             role: data.role,
             school: data.school,
-            createdAt: data.createdAt?.toDate() || new Date()
+            createdAt: toDate(data.createdAt)
           };
         });
       
