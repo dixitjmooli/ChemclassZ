@@ -12,10 +12,10 @@ import { useAuthStore, useAppStore, TeacherAssignment, SyllabusAssignment } from
 import { 
   subscribeToInstitute,
   subscribeToAllStudents,
-  subscribeToAllProgress,
-  subscribeToTests,
-  subscribeToTestMarks,
-  subscribeToAllDisciplineStars,
+  subscribeToProgressForStudents,
+  subscribeToTestsForSubjects,
+  subscribeToTestMarksForTests,
+  subscribeToDisciplineStarsForStudents,
   updateProgressItem,
   enterTestMarks,
   createTest,
@@ -189,43 +189,65 @@ export function TeacherDashboard() {
   })();
 
   useEffect(() => {
-    if (user?.instituteId) {
-      const unsubInstitute = subscribeToInstitute(user.instituteId, (inst) => {
-        setInstitute(inst);
+    if (!user?.instituteId) return;
+    
+    // Store unsubscribes for cleanup
+    let unsubProgress: (() => void) | undefined;
+    let unsubTests: (() => void) | undefined;
+    let unsubTestMarks: (() => void) | undefined;
+    let unsubDiscipline: (() => void) | undefined;
+    
+    const unsubInstitute = subscribeToInstitute(user.instituteId, (inst) => {
+      setInstitute(inst);
+    });
+    
+    // Fetch students once (optimized) - then set up filtered subscriptions
+    getStudentsForInstitute(user.instituteId).then(students => {
+      setAllStudents(students);
+      
+      // Get student IDs for filtered subscriptions
+      const studentIds = students.map(s => s.id);
+      
+      // Get subject IDs from teacher's assignments
+      const subjectIds = assignments.map(a => a.subjectId);
+      
+      console.log('[TeacherDashboard] Setting up optimized subscriptions for:', { 
+        studentCount: studentIds.length, 
+        subjectCount: subjectIds.length 
       });
       
-      // Fetch students once (optimized)
-      getStudentsForInstitute(user.instituteId).then(students => {
-        setAllStudents(students);
-      }).catch(err => {
-        console.error('Error fetching students:', err);
-      });
-
-      const unsubProgress = subscribeToAllProgress((progress) => {
+      // Set up OPTIMIZED subscriptions with filtering
+      unsubProgress = subscribeToProgressForStudents(studentIds, (progress) => {
         setAllProgress(progress);
       });
 
-      const unsubTests = subscribeToTests((tests) => {
+      unsubTests = subscribeToTestsForSubjects(subjectIds, (tests) => {
         setAllTests(tests);
-      });
-
-      const unsubTestMarks = subscribeToTestMarks((marks) => {
-        setAllTestMarks(marks);
+        
+        // Once we have tests, subscribe to their marks
+        const testIds = tests.map(t => t.id);
+        if (testIds.length > 0) {
+          unsubTestMarks = subscribeToTestMarksForTests(testIds, (marks) => {
+            setAllTestMarks(marks);
+          });
+        }
       });
       
-      const unsubDiscipline = subscribeToAllDisciplineStars((stars) => {
+      unsubDiscipline = subscribeToDisciplineStarsForStudents(studentIds, (stars) => {
         setAllDisciplineStars(stars);
       });
+    }).catch(err => {
+      console.error('Error fetching students:', err);
+    });
 
-      return () => {
-        unsubInstitute();
-        unsubProgress();
-        unsubTests();
-        unsubTestMarks();
-        unsubDiscipline();
-      };
-    }
-  }, [user]);
+    return () => {
+      unsubInstitute();
+      if (unsubProgress) unsubProgress();
+      if (unsubTests) unsubTests();
+      if (unsubTestMarks) unsubTestMarks();
+      if (unsubDiscipline) unsubDiscipline();
+    };
+  }, [user?.instituteId, assignments]);
 
   // Load subjects with chapters for progress tracking - ONLY for assigned classes
   useEffect(() => {

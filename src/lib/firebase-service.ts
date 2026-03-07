@@ -2020,6 +2020,103 @@ export const subscribeToAllProgress = (
   });
 };
 
+// Optimized: Subscribe to progress for specific subjectIds only
+export const subscribeToProgressForSubjects = (
+  subjectIds: string[],
+  callback: (progress: Progress[]) => void
+): (() => void) => {
+  if (subjectIds.length === 0) {
+    callback([]);
+    return () => {};
+  }
+  
+  const progressRef = collection(db, COLLECTIONS.PROGRESS);
+  // Firestore 'in' query supports up to 10 items, for more we need multiple queries
+  const queries = [];
+  for (let i = 0; i < subjectIds.length; i += 10) {
+    const batch = subjectIds.slice(i, i + 10);
+    queries.push(query(progressRef, where('subjectId', 'in', batch)));
+  }
+  
+  const allProgress: Progress[] = [];
+  const unsubscribes: (() => void)[] = [];
+  
+  queries.forEach((q) => {
+    const unsub = onSnapshot(q, (snapshot) => {
+      // Remove old progress for this batch
+      const batchSubjectIds = (q as any)._query?.fieldFilters?.[0]?.value?.arrayValue?.values || [];
+      
+      const newProgress = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        userId: doc.data().userId,
+        subjectId: doc.data().subjectId,
+        overallProgress: doc.data().overallProgress || 0,
+        items: doc.data().items || [],
+        hotsCompleted: doc.data().hotsCompleted || {},
+        updatedAt: toDate(doc.data().updatedAt)
+      }));
+      
+      // Update allProgress with new data
+      const existingIds = new Set(newProgress.map(p => p.id));
+      const filtered = allProgress.filter(p => !existingIds.has(p.id));
+      allProgress.length = 0;
+      allProgress.push(...filtered, ...newProgress);
+      
+      callback([...allProgress]);
+    });
+    unsubscribes.push(unsub);
+  });
+  
+  return () => unsubscribes.forEach(unsub => unsub());
+};
+
+// Optimized: Subscribe to progress for specific student IDs
+export const subscribeToProgressForStudents = (
+  studentIds: string[],
+  callback: (progress: Progress[]) => void
+): (() => void) => {
+  if (studentIds.length === 0) {
+    callback([]);
+    return () => {};
+  }
+  
+  const progressRef = collection(db, COLLECTIONS.PROGRESS);
+  
+  // Firestore 'in' query supports up to 10 items
+  const queries = [];
+  for (let i = 0; i < studentIds.length; i += 10) {
+    const batch = studentIds.slice(i, i + 10);
+    queries.push(query(progressRef, where('userId', 'in', batch)));
+  }
+  
+  const allProgress: Progress[] = [];
+  const unsubscribes: (() => void)[] = [];
+  
+  queries.forEach((q) => {
+    const unsub = onSnapshot(q, (snapshot) => {
+      const newProgress = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        userId: doc.data().userId,
+        subjectId: doc.data().subjectId,
+        overallProgress: doc.data().overallProgress || 0,
+        items: doc.data().items || [],
+        hotsCompleted: doc.data().hotsCompleted || {},
+        updatedAt: toDate(doc.data().updatedAt)
+      }));
+      
+      const existingIds = new Set(newProgress.map(p => p.id));
+      const filtered = allProgress.filter(p => !existingIds.has(p.id));
+      allProgress.length = 0;
+      allProgress.push(...filtered, ...newProgress);
+      
+      callback([...allProgress]);
+    });
+    unsubscribes.push(unsub);
+  });
+  
+  return () => unsubscribes.forEach(unsub => unsub());
+};
+
 // Subscribe to all progress without filtering (for superadmin)
 export const subscribeToAllProgressUnfiltered = (
   callback: (progress: Progress[]) => void
@@ -2089,6 +2186,52 @@ export const subscribeToTests = (
   });
 };
 
+// Optimized: Subscribe to tests for specific subjectIds only
+export const subscribeToTestsForSubjects = (
+  subjectIds: string[],
+  callback: (tests: Test[]) => void
+): (() => void) => {
+  if (subjectIds.length === 0) {
+    callback([]);
+    return () => {};
+  }
+  
+  const testsRef = collection(db, COLLECTIONS.TESTS);
+  
+  // Use Firestore 'in' query for efficient filtering
+  const queries = [];
+  for (let i = 0; i < subjectIds.length; i += 10) {
+    const batch = subjectIds.slice(i, i + 10);
+    queries.push(query(testsRef, where('subjectId', 'in', batch)));
+  }
+  
+  const allTests: Test[] = [];
+  const unsubscribes: (() => void)[] = [];
+  
+  queries.forEach((q) => {
+    const unsub = onSnapshot(q, (snapshot) => {
+      const newTests = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        chapterId: doc.data().chapterId,
+        subjectId: doc.data().subjectId,
+        testName: doc.data().testName,
+        maxMarks: doc.data().maxMarks,
+        createdAt: toDate(doc.data().createdAt)
+      }));
+      
+      const existingIds = new Set(newTests.map(t => t.id));
+      const filtered = allTests.filter(t => !existingIds.has(t.id));
+      allTests.length = 0;
+      allTests.push(...filtered, ...newTests);
+      
+      callback([...allTests]);
+    });
+    unsubscribes.push(unsub);
+  });
+  
+  return () => unsubscribes.forEach(unsub => unsub());
+};
+
 export const subscribeToTestMarks = (
   callback: (testMarks: TestMarks[]) => void
 ): (() => void) => {
@@ -2106,6 +2249,53 @@ export const subscribeToTestMarks = (
     }));
     callback(testMarks);
   });
+};
+
+// Optimized: Subscribe to test marks for specific testIds only
+export const subscribeToTestMarksForTests = (
+  testIds: string[],
+  callback: (testMarks: TestMarks[]) => void
+): (() => void) => {
+  if (testIds.length === 0) {
+    callback([]);
+    return () => {};
+  }
+  
+  const testMarksRef = collection(db, COLLECTIONS.TEST_MARKS);
+  
+  // Use Firestore 'in' query
+  const queries = [];
+  for (let i = 0; i < testIds.length; i += 10) {
+    const batch = testIds.slice(i, i + 10);
+    queries.push(query(testMarksRef, where('testId', 'in', batch)));
+  }
+  
+  const allMarks: TestMarks[] = [];
+  const unsubscribes: (() => void)[] = [];
+  
+  queries.forEach((q) => {
+    const unsub = onSnapshot(q, (snapshot) => {
+      const newMarks = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        testId: doc.data().testId,
+        userId: doc.data().userId,
+        chapterId: doc.data().chapterId,
+        subjectId: doc.data().subjectId || '',
+        marks: doc.data().marks,
+        maxMarks: doc.data().maxMarks
+      }));
+      
+      const existingIds = new Set(newMarks.map(m => m.id));
+      const filtered = allMarks.filter(m => !existingIds.has(m.id));
+      allMarks.length = 0;
+      allMarks.push(...filtered, ...newMarks);
+      
+      callback([...allMarks]);
+    });
+    unsubscribes.push(unsub);
+  });
+  
+  return () => unsubscribes.forEach(unsub => unsub());
 };
 
 // Delete a test and all its marks
@@ -2201,6 +2391,49 @@ export const subscribeToAllDisciplineStars = (
     }));
     callback(stars);
   });
+};
+
+// Optimized: Subscribe to discipline stars for specific userIds only
+export const subscribeToDisciplineStarsForStudents = (
+  studentIds: string[],
+  callback: (stars: DisciplineStars[]) => void
+): (() => void) => {
+  if (studentIds.length === 0) {
+    callback([]);
+    return () => {};
+  }
+  
+  const starsRef = collection(db, COLLECTIONS.DISCIPLINE_STARS);
+  
+  // Firestore 'in' query supports up to 10 items
+  const queries = [];
+  for (let i = 0; i < studentIds.length; i += 10) {
+    const batch = studentIds.slice(i, i + 10);
+    queries.push(query(starsRef, where('userId', 'in', batch)));
+  }
+  
+  const allStars: DisciplineStars[] = [];
+  const unsubscribes: (() => void)[] = [];
+  
+  queries.forEach((q) => {
+    const unsub = onSnapshot(q, (snapshot) => {
+      const newStars = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        userId: doc.data().userId,
+        stars: doc.data().stars || 0
+      }));
+      
+      const existingIds = new Set(newStars.map(s => s.id));
+      const filtered = allStars.filter(s => !existingIds.has(s.id));
+      allStars.length = 0;
+      allStars.push(...filtered, ...newStars);
+      
+      callback([...allStars]);
+    });
+    unsubscribes.push(unsub);
+  });
+  
+  return () => unsubscribes.forEach(unsub => unsub());
 };
 
 export const updateDisciplineStars = async (
