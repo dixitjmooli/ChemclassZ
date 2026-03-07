@@ -10,9 +10,7 @@ import {
   subscribeToInstitute,
   TaughtProgress,
   subscribeToAllTaughtProgressForTeacher,
-  getSubjects,
   getUser,
-  Subject,
   getStudentsForInstitute
 } from '@/lib/firebase-service';
 import { TodoList } from '@/components/app/TodoList';
@@ -42,7 +40,6 @@ export function TeacherClassSelector({ onSelect }: TeacherClassSelectorProps) {
   const [loading, setLoading] = useState(true);
   const [syllabusAssignments, setSyllabusAssignments] = useState<SyllabusAssignment[]>([]);
   const [taughtProgress, setTaughtProgress] = useState<TaughtProgress[]>([]);
-  const [predefinedSubjects, setPredefinedSubjects] = useState<Subject[]>([]);
   const [students, setStudents] = useState<User[]>([]);
 
   // Get teacher's assignments
@@ -86,10 +83,6 @@ export function TeacherClassSelector({ onSelect }: TeacherClassSelectorProps) {
         } catch (error) {
           console.error('Error fetching students:', error);
         }
-        
-        // Load predefined subjects for progress calculation
-        const subjects = await getSubjects(null);
-        if (isMounted) setPredefinedSubjects(subjects);
       }
       
       // Use a microtask to defer setState
