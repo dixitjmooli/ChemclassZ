@@ -19,6 +19,15 @@ import {
 import { StudentProgressComparison } from '@/components/app/StudentProgressComparison';
 import { BookOpen, Trophy, Target, TrendingUp, Award, Star, Clock, CheckCircle2, Flame, Users, User as UserIcon, Building2, GraduationCap } from 'lucide-react';
 
+// Helper function to format teacher name with "ji"
+const formatTeacherName = (name: string | undefined | null): string => {
+  if (!name) return 'Self Study';
+  if (name === 'Self Study' || name === 'Unknown' || name === 'Teacher') return name;
+  // Don't add "ji" if already present
+  if (name.toLowerCase().endsWith(' ji')) return name;
+  return `${name} ji`;
+};
+
 interface StudentDashboardProps {
   user: User;
 }
@@ -535,7 +544,7 @@ export function StudentDashboard({ user }: StudentDashboardProps) {
                   <UserIcon className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-lg">{actualTeacherName || 'Self Study'}</p>
+                  <p className="font-semibold text-lg">{formatTeacherName(actualTeacherName)}</p>
                   <p className="text-purple-200 text-sm">
                     {isIndependentTeacher ? 'Teacher' : 'Subject Teacher'}
                   </p>

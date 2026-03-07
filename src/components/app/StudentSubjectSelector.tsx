@@ -45,6 +45,15 @@ import {
   Mail
 } from 'lucide-react';
 
+// Helper function to format teacher name with "ji"
+const formatTeacherName = (name: string | undefined | null): string => {
+  if (!name) return 'Self Study';
+  if (name === 'Self Study' || name === 'Unknown' || name === 'Teacher') return name;
+  // Don't add "ji" if already present
+  if (name.toLowerCase().endsWith(' ji')) return name;
+  return `${name} ji`;
+};
+
 interface StudentSubjectSelectorProps {
   onSelect: (enrollment: StudentEnrollment) => void;
 }
@@ -736,14 +745,14 @@ export function StudentSubjectSelector({ onSelect }: StudentSubjectSelectorProps
                                 <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50 rounded-full">
                                   <User className="w-3 h-3 text-green-600" />
                                   <span className="text-xs font-semibold text-green-700">
-                                    {getActualTeacherName(enrollment)}
+                                    {formatTeacherName(getActualTeacherName(enrollment))}
                                   </span>
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 rounded-full">
                                   <User className="w-3 h-3 text-blue-600" />
                                   <span className="text-xs font-semibold text-blue-700">
-                                    {getActualTeacherName(enrollment)}
+                                    {formatTeacherName(getActualTeacherName(enrollment))}
                                   </span>
                                 </div>
                               )}
@@ -783,7 +792,7 @@ export function StudentSubjectSelector({ onSelect }: StudentSubjectSelectorProps
             </AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to remove <strong>{deleteEnrollmentDialog.enrollment?.subjectName}</strong> 
-              {' '}from <strong>{deleteEnrollmentDialog.enrollment?.teacherName}</strong>?
+              {' '}from <strong>{formatTeacherName(deleteEnrollmentDialog.enrollment?.teacherName)}</strong>?
               Your progress will still be saved but you won't see it in your dashboard.
             </AlertDialogDescription>
           </AlertDialogHeader>
