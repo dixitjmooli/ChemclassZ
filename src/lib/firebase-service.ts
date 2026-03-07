@@ -1741,6 +1741,31 @@ export const getAllStudents = async (): Promise<User[]> => {
     });
 };
 
+// Get students for an institute (one-time fetch, optimized with query)
+export const getStudentsForInstitute = async (instituteId: string): Promise<User[]> => {
+  const usersRef = collection(db, COLLECTIONS.USERS);
+  const q = query(usersRef, where('instituteId', '==', instituteId), where('role', '==', 'student'));
+  const snapshot = await getDocs(q);
+  
+  return snapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      name: data.name,
+      email: data.email || '',
+      username: data.username || '',
+      role: data.role,
+      instituteId: data.instituteId,
+      assignedClassId: data.assignedClassId,
+      assignedSubjectId: data.assignedSubjectId,
+      classId: data.classId,
+      independentTeacherId: data.independentTeacherId,
+      enrollments: data.enrollments || undefined,
+      createdAt: toDate(data.createdAt)
+    };
+  });
+};
+
 export const subscribeToAllStudents = (
   callback: (students: User[]) => void,
   instituteId?: string,
@@ -1749,29 +1774,34 @@ export const subscribeToAllStudents = (
 ): (() => void) => {
   const usersRef = collection(db, COLLECTIONS.USERS);
   
-  return onSnapshot(usersRef, (snapshot) => {
+  // Use proper Firestore query with where clauses for better performance
+  // Always filter by role='student' at database level
+  let q = query(usersRef, where('role', '==', 'student'));
+  
+  // Add instituteId filter if provided (most common case for teachers)
+  if (instituteId) {
+    q = query(q, where('instituteId', '==', instituteId));
+  }
+  
+  return onSnapshot(q, (snapshot) => {
     const students: User[] = snapshot.docs
       .filter((doc) => {
         const data = doc.data();
-        const isStudent = data.role === 'student';
-        const matchesInstitute = !instituteId || data.instituteId === instituteId;
         
         // Check if student matches class - check both classId and enrollments
-        let matchesClass = !classId;
-        if (classId) {
-          // Check direct classId
-          if (data.classId === classId) {
-            matchesClass = true;
-          }
-          // Check enrollments array
-          else if (data.enrollments && Array.isArray(data.enrollments)) {
-            matchesClass = data.enrollments.some((e: { classId?: string; subjectId?: string }) => 
-              e.classId === classId || (subjectId && e.subjectId === subjectId)
-            );
-          }
+        if (!classId) return true;
+        
+        // Check direct classId
+        if (data.classId === classId) return true;
+        
+        // Check enrollments array
+        if (data.enrollments && Array.isArray(data.enrollments)) {
+          return data.enrollments.some((e: { classId?: string; subjectId?: string }) => 
+            e.classId === classId || (subjectId && e.subjectId === subjectId)
+          );
         }
         
-        return isStudent && matchesInstitute && matchesClass;
+        return false;
       })
       .map((doc) => {
         const data = doc.data();

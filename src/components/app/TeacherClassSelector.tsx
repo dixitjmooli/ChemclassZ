@@ -13,7 +13,7 @@ import {
   getSubjects,
   getUser,
   Subject,
-  subscribeToAllStudents
+  getStudentsForInstitute
 } from '@/lib/firebase-service';
 import { TodoList } from '@/components/app/TodoList';
 import { 
@@ -52,7 +52,6 @@ export function TeacherClassSelector({ onSelect }: TeacherClassSelectorProps) {
     let isMounted = true;
     let unsubInstitute: (() => void) | undefined;
     let unsubProgress: (() => void) | undefined;
-    let unsubStudents: (() => void) | undefined;
     
     const initialize = async () => {
       if (user?.instituteId && user?.id) {
@@ -79,12 +78,14 @@ export function TeacherClassSelector({ onSelect }: TeacherClassSelectorProps) {
           if (isMounted) setTaughtProgress(progress);
         });
         
-        // Subscribe to all students in institute
-        unsubStudents = subscribeToAllStudents((allStudents) => {
-          console.log('[TeacherClassSelector] Received students:', allStudents.length);
-          console.log('[TeacherClassSelector] Students with enrollments:', allStudents.filter(s => s.enrollments && s.enrollments.length > 0).length);
-          if (isMounted) setStudents(allStudents);
-        }, user.instituteId);
+        // Fetch students once (one-time fetch, not subscription for better performance)
+        try {
+          const instituteStudents = await getStudentsForInstitute(user.instituteId);
+          console.log('[TeacherClassSelector] Fetched students:', instituteStudents.length);
+          if (isMounted) setStudents(instituteStudents);
+        } catch (error) {
+          console.error('Error fetching students:', error);
+        }
         
         // Load predefined subjects for progress calculation
         const subjects = await getSubjects(null);
@@ -103,7 +104,6 @@ export function TeacherClassSelector({ onSelect }: TeacherClassSelectorProps) {
       isMounted = false;
       if (unsubInstitute) unsubInstitute();
       if (unsubProgress) unsubProgress();
-      if (unsubStudents) unsubStudents();
     };
   }, [user, setInstitute]);
 
