@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Users collection
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // Chapters collection
+    match /chapters/{chapterId} {
+      allow read: if true;
+      allow write: if true;
+      
+      // Topics subcollection
+      match /topics/{topicId} {
+        allow read: if true;
+        allow write: if true;
+      }
+    }
+    
+    // Progress collection
+    match /progress/{progressId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // Tests collection
+    match /tests/{testId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // Test Marks collection
+    match /testMarks/{testMarkId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // PDFs collection
+    match /pdfs/{pdfId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // Discipline Stars collection
+    match /disciplineStars/{starsId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // Activity Log collection
+    match /activityLog/{logId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // Streaks collection
+    match /streaks/{streakId} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}
+```
