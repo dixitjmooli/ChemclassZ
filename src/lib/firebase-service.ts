@@ -1174,6 +1174,119 @@ export const getSubjects = async (instituteId?: string): Promise<Subject[]> => {
   return subjects;
 };
 
+// Get predefined subjects for specific class numbers only (more efficient)
+export const getPredefinedSubjectsForClasses = async (classNumbers: number[]): Promise<Subject[]> => {
+  if (classNumbers.length === 0) return [];
+  
+  const subjectsRef = collection(db, COLLECTIONS.SUBJECTS);
+  const q = query(
+    subjectsRef, 
+    where('isDefault', '==', true),
+    where('classNumber', 'in', classNumbers)
+  );
+  
+  const snapshot = await getDocs(q);
+  
+  const subjects: Subject[] = [];
+  
+  for (const doc of snapshot.docs) {
+    const data = doc.data();
+    // Get chapters for this subject
+    const chaptersRef = collection(db, COLLECTIONS.SUBJECTS, doc.id, 'chapters');
+    const chaptersSnapshot = await getDocs(chaptersRef);
+    
+    const chapters: Chapter[] = [];
+    for (const chapterDoc of chaptersSnapshot.docs) {
+      const chapterData = chapterDoc.data();
+      const topicsRef = collection(db, COLLECTIONS.SUBJECTS, doc.id, 'chapters', chapterDoc.id, 'topics');
+      const topicsSnapshot = await getDocs(topicsRef);
+      
+      const topics: Topic[] = topicsSnapshot.docs.map((topicDoc) => ({
+        id: topicDoc.id,
+        topicNo: topicDoc.data().topicNo,
+        name: topicDoc.data().name,
+        chapterId: chapterDoc.id
+      })).sort((a, b) => a.topicNo - b.topicNo);
+      
+      chapters.push({
+        id: chapterDoc.id,
+        chapterNo: chapterData.chapterNo,
+        name: chapterData.name,
+        topics
+      });
+    }
+    
+    subjects.push({
+      id: doc.id,
+      name: data.name,
+      classNumber: data.classNumber,
+      instituteId: data.instituteId,
+      isDefault: data.isDefault || false,
+      chapters: chapters.sort((a, b) => a.chapterNo - b.chapterNo)
+    });
+  }
+  
+  return subjects;
+};
+
+// Get a single predefined subject by class number and subject name/ID
+export const getPredefinedSubject = async (classNumber: number, subjectIdOrName: string): Promise<Subject | null> => {
+  const subjectsRef = collection(db, COLLECTIONS.SUBJECTS);
+  const q = query(
+    subjectsRef, 
+    where('isDefault', '==', true),
+    where('classNumber', '==', classNumber)
+  );
+  
+  const snapshot = await getDocs(q);
+  
+  for (const doc of snapshot.docs) {
+    const data = doc.data();
+    // Match by ID or by name (case-insensitive)
+    const matchesId = doc.id === subjectIdOrName || doc.id.replace(/_/g, ' ') === subjectIdOrName.replace(/_/g, ' ');
+    const matchesName = data.name?.toLowerCase() === subjectIdOrName.toLowerCase() ||
+                        data.name?.toLowerCase().includes(subjectIdOrName.toLowerCase());
+    
+    if (matchesId || matchesName) {
+      // Get chapters for this subject
+      const chaptersRef = collection(db, COLLECTIONS.SUBJECTS, doc.id, 'chapters');
+      const chaptersSnapshot = await getDocs(chaptersRef);
+      
+      const chapters: Chapter[] = [];
+      for (const chapterDoc of chaptersSnapshot.docs) {
+        const chapterData = chapterDoc.data();
+        const topicsRef = collection(db, COLLECTIONS.SUBJECTS, doc.id, 'chapters', chapterDoc.id, 'topics');
+        const topicsSnapshot = await getDocs(topicsRef);
+        
+        const topics: Topic[] = topicsSnapshot.docs.map((topicDoc) => ({
+          id: topicDoc.id,
+          topicNo: topicDoc.data().topicNo,
+          name: topicDoc.data().name,
+          chapterId: chapterDoc.id
+        })).sort((a, b) => a.topicNo - b.topicNo);
+        
+        chapters.push({
+          id: chapterDoc.id,
+          chapterNo: chapterData.chapterNo,
+          name: chapterData.name,
+          topics
+        });
+      }
+      
+      return {
+        id: doc.id,
+        name: data.name,
+        classNumber: data.classNumber,
+        instituteId: data.instituteId,
+        isDefault: data.isDefault || false,
+        chapters: chapters.sort((a, b) => a.chapterNo - b.chapterNo)
+      };
+    }
+  }
+  
+  return null;
+};
+
 export const subscribeToSubjects = (
   instituteId: string | null,
   callback: (subjects: Subject[]) => void

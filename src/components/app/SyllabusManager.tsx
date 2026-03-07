@@ -21,7 +21,8 @@ import {
   deleteSubject,
   subscribeToCustomSubjectsForTeacher,
   subscribeToCustomSubjectsForInstitute,
-  getSubjects,
+  getPredefinedSubject,
+  getPredefinedSubjectsForClasses,
   setSyllabusPreference,
   Subject,
   getUser,
@@ -132,9 +133,26 @@ export function SyllabusManager({ onSyllabusChange }: SyllabusManagerProps) {
     const load = async () => {
       setLoading(true);
       try {
-        // Load predefined subjects from Firestore
-        const predefined = await getSubjects(undefined);
-        setPredefinedSubjects(predefined);
+        // Get class numbers from teacher's assignments
+        const classNumbers = [...new Set(
+          assignments
+            .map(a => {
+              const className = institute?.classes.find(c => c.id === a.classId)?.name || '';
+              return parseInt(className.match(/\d+/)?.[0] || '0');
+            })
+            .filter(n => n > 0)
+        )];
+        
+        console.log('[SyllabusManager] Loading predefined subjects for classes:', classNumbers);
+        
+        // Load ONLY predefined subjects for teacher's assigned classes
+        if (classNumbers.length > 0) {
+          const predefined = await getPredefinedSubjectsForClasses(classNumbers);
+          setPredefinedSubjects(predefined);
+          console.log('[SyllabusManager] Loaded predefined subjects:', predefined.length);
+        } else {
+          setPredefinedSubjects([]);
+        }
 
         // Load user's syllabus assignments from user document
         const userData = await getUser(user.id);
@@ -150,11 +168,13 @@ export function SyllabusManager({ onSyllabusChange }: SyllabusManagerProps) {
         // Load custom subjects based on role
         if (user.role === 'independent_teacher') {
           unsubscribe = subscribeToCustomSubjectsForTeacher(user.id, (subjects) => {
-            setCustomSubjects(subjects);
+            // Filter out empty subjects (no chapters) - likely corrupted data
+            setCustomSubjects(subjects.filter(s => s.chapters && s.chapters.length > 0));
           });
         } else if (effectiveInstituteId) {
           unsubscribe = subscribeToCustomSubjectsForInstitute(effectiveInstituteId, (subjects) => {
-            setCustomSubjects(subjects);
+            // Filter out empty subjects (no chapters) - likely corrupted data
+            setCustomSubjects(subjects.filter(s => s.chapters && s.chapters.length > 0));
           });
         }
       } catch (error) {
@@ -174,7 +194,7 @@ export function SyllabusManager({ onSyllabusChange }: SyllabusManagerProps) {
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [user?.id, user?.instituteId, institute?.id]);
+  }, [user?.id, user?.instituteId, institute?.id, assignments, institute?.classes]);
 
   // Build class-subject assignments with syllabus info
   // Filter to only show the SELECTED class-subject from teacherSelectedAssignment
@@ -277,55 +297,63 @@ export function SyllabusManager({ onSyllabusChange }: SyllabusManagerProps) {
     
     setSaving(true);
     try {
-      // Convert predefined chapters to the format needed for createCustomSubject
-      const chaptersData = predefinedSubject.chapters.map(chapter => ({
-        name: chapter.name,
-        topics: chapter.topics.map(t => t.name)
-      }));
+      // Use the predefined subject directly instead of creating a copy
+      const syllabusId = `class${predefinedSubject.classNumber}_${predefinedSubject.name.toLowerCase()}`;
+      const syllabusName = `CBSE Class ${predefinedSubject.classNumber} ${predefinedSubject.name}`;
       
-      // Create a custom subject copy for this teacher
-      const customSubjectName = `CBSE Class ${predefinedSubject.classNumber} ${predefinedSubject.name}`;
-      let createdSubject: CustomSubject | null = null;
+      // Update syllabus assignments
+      const newAssignments = syllabusAssignments.filter(
+        a => !(a.classId === selectedAssignmentForSyllabus.classId && 
+               a.subjectId === selectedAssignmentForSyllabus.subjectId)
+      );
       
-      if (user.role === 'independent_teacher') {
-        createdSubject = await createCustomSubject(customSubjectName, [], chaptersData, { 
-          independentTeacherId: user.id 
-        });
-      } else if (user.instituteId) {
-        createdSubject = await createCustomSubject(customSubjectName, [], chaptersData, { 
-          instituteId: user.instituteId 
-        });
-      }
+      newAssignments.push({
+        classId: selectedAssignmentForSyllabus.classId,
+        className: selectedAssignmentForSyllabus.className,
+        subjectId: selectedAssignmentForSyllabus.subjectId,
+        subjectName: selectedAssignmentForSyllabus.subjectName,
+        syllabusId: syllabusId,
+        syllabusType: 'predefined',
+        syllabusName: syllabusName
+      });
       
-      if (createdSubject) {
-        // Update syllabus assignments with the custom subject
-        const newAssignments = syllabusAssignments.filter(
-          a => !(a.classId === selectedAssignmentForSyllabus.classId && 
-                 a.subjectId === selectedAssignmentForSyllabus.subjectId)
+      // Save to user document
+      await updateUser(user.id, { syllabusAssignments: newAssignments });
+      setSyllabusAssignments(newAssignments);
+      
+      // Also update the auth store so other components see the change immediately
+      updateUserInAuthStore({ syllabusAssignments: newAssignments });
+      
+      // Initialize taught progress for this subject
+      try {
+        const { initializeTaughtProgress } = await import('@/lib/firebase-service');
+        await initializeTaughtProgress(
+          user.id,
+          syllabusId,
+          predefinedSubject.chapters,
+          user.instituteId ? { instituteId: user.instituteId } : undefined
         );
-        
-        newAssignments.push({
-          classId: selectedAssignmentForSyllabus.classId,
-          className: selectedAssignmentForSyllabus.className,
-          subjectId: selectedAssignmentForSyllabus.subjectId,
-          subjectName: selectedAssignmentForSyllabus.subjectName,
-          syllabusId: createdSubject.id,
-          syllabusType: 'custom',
-          syllabusName: customSubjectName
-        });
-        
-        // Save to user document
-        await updateUser(user.id, { syllabusAssignments: newAssignments });
-        setSyllabusAssignments(newAssignments);
-        
-        // Also update the auth store so other components see the change immediately
-        updateUserInAuthStore({ syllabusAssignments: newAssignments });
-        
-        toast({ 
-          title: 'Syllabus Loaded!', 
-          description: `${predefinedSubject.name} syllabus loaded. You can now edit it in your Custom Syllabus Library.` 
-        });
+      } catch (err) {
+        console.log('Could not initialize taught progress:', err);
       }
+      
+      // Auto-sync syllabus to students
+      try {
+        await syncSyllabusToStudents(
+          syllabusId,
+          selectedAssignmentForSyllabus.classId,
+          user.instituteId,
+          user.role === 'independent_teacher' ? user.id : undefined
+        );
+        console.log('Syllabus auto-synced to students');
+      } catch (err) {
+        console.log('Could not auto-sync to students:', err);
+      }
+      
+      toast({ 
+        title: 'Syllabus Assigned!', 
+        description: `${syllabusName} assigned. Chapters are now visible to students.` 
+      });
       
       setShowPredefinedSelector(false);
       setSelectedAssignmentForSyllabus(null);

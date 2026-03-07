@@ -21,11 +21,12 @@ import {
   createTest,
   deleteTest,
   updateDisciplineStars,
-  getSubjects,
+  getPredefinedSubjectsForClasses,
   subscribeToCustomSubjectsForInstitute,
   getUser,
   Subject,
-  CustomSubject
+  CustomSubject,
+  getStudentsForInstitute
 } from '@/lib/firebase-service';
 import { SyllabusManager } from '@/components/app/SyllabusManager';
 import { TeacherSyllabusProgress } from '@/components/app/TeacherSyllabusProgress';
@@ -174,9 +175,12 @@ export function TeacherDashboard() {
         setInstitute(inst);
       });
       
-      const unsubStudents = subscribeToAllStudents((students) => {
+      // Fetch students once (optimized)
+      getStudentsForInstitute(user.instituteId).then(students => {
         setAllStudents(students);
-      }, user.instituteId);
+      }).catch(err => {
+        console.error('Error fetching students:', err);
+      });
 
       const unsubProgress = subscribeToAllProgress((progress) => {
         setAllProgress(progress);
@@ -196,7 +200,6 @@ export function TeacherDashboard() {
 
       return () => {
         unsubInstitute();
-        unsubStudents();
         unsubProgress();
         unsubTests();
         unsubTestMarks();
@@ -205,7 +208,7 @@ export function TeacherDashboard() {
     }
   }, [user]);
 
-  // Load subjects with chapters for progress tracking
+  // Load subjects with chapters for progress tracking - ONLY for assigned classes
   useEffect(() => {
     if (!user?.id) return;
     
@@ -214,9 +217,26 @@ export function TeacherDashboard() {
     const loadSubjects = async () => {
       setLoadingSubjects(true);
       try {
-        // Load predefined subjects
-        const predefined = await getSubjects(null);
-        setPredefinedSubjects(predefined);
+        // Get unique class numbers from teacher's assignments
+        const classNumbers = [...new Set(
+          assignments
+            .map(a => {
+              const className = institute?.classes.find(c => c.id === a.classId)?.name || '';
+              return parseInt(className.match(/\d+/)?.[0] || '0');
+            })
+            .filter(n => n > 0)
+        )];
+        
+        console.log('[TeacherDashboard] Loading predefined subjects for classes:', classNumbers);
+        
+        // Load ONLY predefined subjects for teacher's assigned classes
+        if (classNumbers.length > 0) {
+          const predefined = await getPredefinedSubjectsForClasses(classNumbers);
+          setPredefinedSubjects(predefined);
+          console.log('[TeacherDashboard] Loaded predefined subjects:', predefined.length);
+        } else {
+          setPredefinedSubjects([]);
+        }
         
         // Load syllabus assignments from Firebase
         const userData = await getUser(user.id);
@@ -243,7 +263,7 @@ export function TeacherDashboard() {
     return () => {
       if (unsubCustom) unsubCustom();
     };
-  }, [user?.id, user?.instituteId]);
+  }, [user?.id, user?.instituteId, assignments, institute?.classes]);
 
   // Refresh syllabus assignments when switching to myProgress tab
   useEffect(() => {
