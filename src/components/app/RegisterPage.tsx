@@ -640,17 +640,18 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
                   {teachers.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-2">
                       {teachers.map((teacher, index) => (
-                        <Badge key={index} variant="secondary" className="px-3 py-1 flex items-center gap-2">
+                        <Badge key={index} variant="secondary" className="px-3 py-1.5 flex items-center gap-2">
                           <span>{teacher.name} ({teacher.email})</span>
                           <button 
                             type="button"
-                            className="hover:bg-red-100 rounded p-0.5 transition-colors"
+                            className="ml-1 w-5 h-5 flex items-center justify-center hover:bg-red-500 hover:text-white rounded-full transition-colors"
                             onClick={(e) => {
                               e.stopPropagation();
+                              e.preventDefault();
                               removeTeacher(index);
                             }}
                           >
-                            <X className="w-3 h-3 hover:text-red-500" />
+                            <X className="w-3 h-3" />
                           </button>
                         </Badge>
                       ))}

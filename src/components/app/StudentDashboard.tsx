@@ -66,21 +66,63 @@ export function StudentDashboard({ user }: StudentDashboardProps) {
             sa => sa.classId === studentSelectedEnrollment.classId && 
                   sa.subjectId === studentSelectedEnrollment.subjectId
           );
+          console.log('[StudentDashboard] Found syllabus assignment for independent teacher:', assignment?.syllabusId);
           setSyllabusIdForProgress(assignment?.syllabusId || null);
         }
       }
-      // For institutes, we need to find the teacher's syllabus assignment
-      else if (studentSelectedEnrollment.instituteId && studentSelectedEnrollment.teacherName) {
-        // The teacherName in enrollment is the actual teacher name
-        // We need to find the teacher and get their syllabus assignment
-        // For now, let's use a workaround: look up all taught progress for institute
-        // and match by subject patterns
-        setSyllabusIdForProgress(null); // Will use fallback method
+      // For institutes, find the teacher by their name or ID and get their syllabus assignment
+      else if (studentSelectedEnrollment.instituteId) {
+        try {
+          // Get all teachers for this institute
+          const teachers = await getTeachersForInstitute(studentSelectedEnrollment.instituteId);
+          
+          // Try to find teacher by matching with class's teacherId from institute
+          if (instituteInfo?.classes) {
+            const matchedClass = instituteInfo.classes.find(c => c.id === studentSelectedEnrollment.classId);
+            const teacherIdValue = (matchedClass as any)?.teacherId;
+            
+            if (teacherIdValue) {
+              // Check if it's a Firebase ID
+              let matchedTeacher = teachers.find(t => t.id === teacherIdValue);
+              
+              // If not found by ID, try to match by name
+              if (!matchedTeacher && teacherIdValue.length <= 20) {
+                matchedTeacher = teachers.find(t => t.name === teacherIdValue);
+              }
+              
+              // If still not found, try to match by email
+              if (!matchedTeacher && teacherIdValue.includes('@')) {
+                matchedTeacher = teachers.find(t => t.email?.toLowerCase() === teacherIdValue.toLowerCase());
+              }
+              
+              if (matchedTeacher) {
+                // Get the teacher's syllabus assignments
+                const teacherData = await getUser(matchedTeacher.id);
+                if (teacherData?.syllabusAssignments) {
+                  const assignment = teacherData.syllabusAssignments.find(
+                    sa => sa.classId === studentSelectedEnrollment.classId && 
+                          sa.subjectId === studentSelectedEnrollment.subjectId
+                  );
+                  console.log('[StudentDashboard] Found syllabus assignment for institute teacher:', assignment?.syllabusId);
+                  setSyllabusIdForProgress(assignment?.syllabusId || null);
+                  return;
+                }
+              }
+            }
+          }
+          
+          // Fallback: No syllabusId found, will use other matching strategies
+          console.log('[StudentDashboard] No syllabusId found for institute student');
+          setSyllabusIdForProgress(null);
+        } catch (error) {
+          console.error('[StudentDashboard] Error fetching teacher syllabus:', error);
+          setSyllabusIdForProgress(null);
+        }
       }
     };
     
     fetchSyllabusId();
-  }, [studentSelectedEnrollment]);
+  }, [studentSelectedEnrollment, instituteInfo]);
 
   // Fetch teacher/institute info
   useEffect(() => {
@@ -765,7 +807,8 @@ export function StudentDashboard({ user }: StudentDashboardProps) {
             <CardContent>
               <StudentProgressComparison 
                 subject={currentSubject} 
-                studentProgress={overallProgress} 
+                studentProgress={overallProgress}
+                syllabusId={syllabusIdForProgress}
               />
             </CardContent>
           </Card>

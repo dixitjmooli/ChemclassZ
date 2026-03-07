@@ -5,14 +5,15 @@ import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { useAuthStore, useAppStore, TeacherAssignment, SyllabusAssignment } from '@/lib/store';
+import { useAuthStore, useAppStore, TeacherAssignment, SyllabusAssignment, User } from '@/lib/store';
 import { 
   subscribeToInstitute,
   TaughtProgress,
   subscribeToAllTaughtProgressForTeacher,
   getSubjects,
   getUser,
-  Subject
+  Subject,
+  subscribeToAllStudents
 } from '@/lib/firebase-service';
 import { TodoList } from '@/components/app/TodoList';
 import { 
@@ -35,14 +36,14 @@ export function TeacherClassSelector({ onSelect }: TeacherClassSelectorProps) {
   const { user } = useAuthStore();
   const { 
     institute, 
-    setInstitute,
-    allStudents
+    setInstitute
   } = useAppStore();
 
   const [loading, setLoading] = useState(true);
   const [syllabusAssignments, setSyllabusAssignments] = useState<SyllabusAssignment[]>([]);
   const [taughtProgress, setTaughtProgress] = useState<TaughtProgress[]>([]);
   const [predefinedSubjects, setPredefinedSubjects] = useState<Subject[]>([]);
+  const [students, setStudents] = useState<User[]>([]);
 
   // Get teacher's assignments
   const assignments = user?.assignments || [];
@@ -51,6 +52,7 @@ export function TeacherClassSelector({ onSelect }: TeacherClassSelectorProps) {
     let isMounted = true;
     let unsubInstitute: (() => void) | undefined;
     let unsubProgress: (() => void) | undefined;
+    let unsubStudents: (() => void) | undefined;
     
     const initialize = async () => {
       if (user?.instituteId && user?.id) {
@@ -77,6 +79,13 @@ export function TeacherClassSelector({ onSelect }: TeacherClassSelectorProps) {
           if (isMounted) setTaughtProgress(progress);
         });
         
+        // Subscribe to all students in institute
+        unsubStudents = subscribeToAllStudents((allStudents) => {
+          console.log('[TeacherClassSelector] Received students:', allStudents.length);
+          console.log('[TeacherClassSelector] Students with enrollments:', allStudents.filter(s => s.enrollments && s.enrollments.length > 0).length);
+          if (isMounted) setStudents(allStudents);
+        }, user.instituteId);
+        
         // Load predefined subjects for progress calculation
         const subjects = await getSubjects(null);
         if (isMounted) setPredefinedSubjects(subjects);
@@ -94,6 +103,7 @@ export function TeacherClassSelector({ onSelect }: TeacherClassSelectorProps) {
       isMounted = false;
       if (unsubInstitute) unsubInstitute();
       if (unsubProgress) unsubProgress();
+      if (unsubStudents) unsubStudents();
     };
   }, [user, setInstitute]);
 
@@ -107,9 +117,21 @@ export function TeacherClassSelector({ onSelect }: TeacherClassSelectorProps) {
     return institute?.subjects.find(s => s.id === subjectId)?.name || subjectId;
   };
 
-  // Get students count for a class
-  const getStudentCount = (classId: string) => {
-    return allStudents.filter(s => s.classId === classId).length;
+  // Get students count for a class-subject (checking both classId and enrollments)
+  const getStudentCount = (classId: string, subjectId?: string) => {
+    return students.filter(s => {
+      // Check direct classId match
+      if (s.classId === classId) return true;
+      
+      // Check enrollments array
+      if (s.enrollments && s.enrollments.length > 0) {
+        return s.enrollments.some(e => 
+          e.classId === classId || (subjectId && e.subjectId === subjectId)
+        );
+      }
+      
+      return false;
+    }).length;
   };
 
   // Check if syllabus is assigned
@@ -194,7 +216,7 @@ export function TeacherClassSelector({ onSelect }: TeacherClassSelectorProps) {
 
   // Calculate overall stats
   const totalClasses = assignments.length;
-  const totalStudents = allStudents.length;
+  const totalStudents = students.length;
   const avgProgress = (() => {
     if (assignments.length === 0) return 0;
     let totalPercent = 0;
@@ -298,7 +320,7 @@ export function TeacherClassSelector({ onSelect }: TeacherClassSelectorProps) {
             {assignments.map((assignment, index) => {
               const className = getClassName(assignment.classId);
               const subjectName = getSubjectName(assignment.subjectId);
-              const studentCount = getStudentCount(assignment.classId);
+              const studentCount = getStudentCount(assignment.classId, assignment.subjectId);
               const hasSyllabus = hasSyllabusAssigned(assignment.classId, assignment.subjectId);
               const syllabusName = getSyllabusName(assignment.classId, assignment.subjectId);
               const progress = getProgress(assignment.classId, assignment.subjectId);

@@ -519,14 +519,15 @@ export const deleteInstitute = async (instituteId: string): Promise<void> => {
 };
 
 // Get all teachers for an institute
-export const getTeachersForInstitute = async (instituteId: string): Promise<{ id: string; name: string }[]> => {
+export const getTeachersForInstitute = async (instituteId: string): Promise<{ id: string; name: string; email?: string }[]> => {
   const usersRef = collection(db, COLLECTIONS.USERS);
   const q = query(usersRef, where('instituteId', '==', instituteId), where('role', '==', 'teacher'));
   const snapshot = await getDocs(q);
   
   return snapshot.docs.map(doc => ({
     id: doc.id,
-    name: doc.data().name
+    name: doc.data().name,
+    email: doc.data().email
   }));
 };
 
@@ -793,6 +794,23 @@ export const createInstituteWithClasses = async (
   classEntries: { classNumber: number; stream: string | null; subjectName: string; nickname: string | null; teacherId: string | null }[],
   teachers: { name: string; email: string; password: string }[]
 ): Promise<Institute> => {
+  // First, check if all teacher usernames are available
+  const usersRef = collection(db, COLLECTIONS.USERS);
+  for (const teacher of teachers) {
+    const username = teacher.email.split('@')[0].toLowerCase();
+    const emailQuery = query(usersRef, where('email', '==', teacher.email.toLowerCase()));
+    const emailSnapshot = await getDocs(emailQuery);
+    if (!emailSnapshot.empty) {
+      throw new Error(`Email "${teacher.email}" is already registered`);
+    }
+    
+    const usernameQuery = query(usersRef, where('username', '==', username));
+    const usernameSnapshot = await getDocs(usernameQuery);
+    if (!usernameSnapshot.empty) {
+      throw new Error(`Username "${username}" (from ${teacher.email}) is already taken. Please use a different email for teacher "${teacher.name}".`);
+    }
+  }
+  
   // Generate unique referral code
   let referralCode = generateReferralCode();
   let codeExists = true;
@@ -1726,7 +1744,8 @@ export const getAllStudents = async (): Promise<User[]> => {
 export const subscribeToAllStudents = (
   callback: (students: User[]) => void,
   instituteId?: string,
-  classId?: string
+  classId?: string,
+  subjectId?: string
 ): (() => void) => {
   const usersRef = collection(db, COLLECTIONS.USERS);
   
@@ -1736,7 +1755,22 @@ export const subscribeToAllStudents = (
         const data = doc.data();
         const isStudent = data.role === 'student';
         const matchesInstitute = !instituteId || data.instituteId === instituteId;
-        const matchesClass = !classId || data.classId === classId;
+        
+        // Check if student matches class - check both classId and enrollments
+        let matchesClass = !classId;
+        if (classId) {
+          // Check direct classId
+          if (data.classId === classId) {
+            matchesClass = true;
+          }
+          // Check enrollments array
+          else if (data.enrollments && Array.isArray(data.enrollments)) {
+            matchesClass = data.enrollments.some((e: { classId?: string; subjectId?: string }) => 
+              e.classId === classId || (subjectId && e.subjectId === subjectId)
+            );
+          }
+        }
+        
         return isStudent && matchesInstitute && matchesClass;
       })
       .map((doc) => {
@@ -1752,6 +1786,7 @@ export const subscribeToAllStudents = (
           assignedSubjectId: data.assignedSubjectId,
           classId: data.classId,
           independentTeacherId: data.independentTeacherId,
+          enrollments: data.enrollments || undefined,
           createdAt: toDate(data.createdAt)
         };
       });

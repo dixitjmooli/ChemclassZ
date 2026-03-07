@@ -37,6 +37,7 @@ import {
 interface StudentProgressComparisonProps {
   subject: Subject;
   studentProgress: number;
+  syllabusId?: string | null;
 }
 
 // Gap-based messages
@@ -110,7 +111,7 @@ function getGapMessage(studentPercent: number, teacherPercent: number): { messag
   return { ...GAP_MESSAGES.behind40, gap };
 }
 
-export function StudentProgressComparison({ subject, studentProgress }: StudentProgressComparisonProps) {
+export function StudentProgressComparison({ subject, studentProgress, syllabusId }: StudentProgressComparisonProps) {
   const { user } = useAuthStore();
   const { progress, studentSelectedEnrollment } = useAppStore();
   
@@ -123,28 +124,64 @@ export function StudentProgressComparison({ subject, studentProgress }: StudentP
     
     let unsubscribe: (() => void) | undefined;
     
+    // Determine which subjectId to use for progress lookup
+    // Priority: syllabusId prop > enrollment's subjectId > subject.id
+    const progressSubjectId = syllabusId || studentSelectedEnrollment?.subjectId || subject.id;
+    
+    console.log('[StudentProgressComparison] Looking for progress with subjectId:', progressSubjectId, {
+      syllabusId,
+      enrollmentSubjectId: studentSelectedEnrollment?.subjectId,
+      subjectId: subject.id
+    });
+    
     if (user.independentTeacherId) {
       // Get taught progress from independent teacher
-      unsubscribe = subscribeToTaughtProgress(user.independentTeacherId, subject.id, (tp) => {
+      unsubscribe = subscribeToTaughtProgress(user.independentTeacherId, progressSubjectId, (tp) => {
+        console.log('[StudentProgressComparison] Got progress from independent teacher:', tp?.overallProgress);
         setTaughtProgress(tp);
       });
     } else if (user.instituteId) {
       // For institute students, get all taught progress for this institute
-      // and filter by the subject (and teacher if available)
+      // and filter by the subject
       unsubscribe = subscribeToAllTaughtProgressForInstitute(user.instituteId, (progressList) => {
-        // Try to find progress for this specific subject
-        // First try to match by subjectId
-        let subjectProgress = progressList.find(p => p.subjectId === subject.id);
+        console.log('[StudentProgressComparison] All institute progress:', progressList.map(p => ({ subjectId: p.subjectId, progress: p.overallProgress })));
         
-        // If not found, try to match by the syllabusId from enrollment
-        if (!subjectProgress && studentSelectedEnrollment) {
-          subjectProgress = progressList.find(p => 
-            p.subjectId === studentSelectedEnrollment.subjectId ||
-            p.subjectId === subject.id
-          );
+        // Try multiple matching strategies
+        let subjectProgress = null;
+        
+        // 1. First try exact match with syllabusId
+        if (syllabusId) {
+          subjectProgress = progressList.find(p => p.subjectId === syllabusId);
+          console.log('[StudentProgressComparison] Tried syllabusId match:', syllabusId, 'found:', !!subjectProgress);
         }
         
-        console.log('[StudentProgressComparison] Found progress:', subjectProgress?.overallProgress, 'for subject:', subject.id);
+        // 2. Try with underscore format (class11_chemistry)
+        if (!subjectProgress && syllabusId) {
+          const underscoreFormat = syllabusId.includes(' ') ? syllabusId.replace(/ /g, '_') : syllabusId;
+          subjectProgress = progressList.find(p => p.subjectId === underscoreFormat);
+          console.log('[StudentProgressComparison] Tried underscore format:', underscoreFormat, 'found:', !!subjectProgress);
+        }
+        
+        // 3. Try with space format (class11 chemistry)
+        if (!subjectProgress && syllabusId) {
+          const spaceFormat = syllabusId.includes('_') ? syllabusId.replace(/_/g, ' ') : syllabusId;
+          subjectProgress = progressList.find(p => p.subjectId === spaceFormat);
+          console.log('[StudentProgressComparison] Tried space format:', spaceFormat, 'found:', !!subjectProgress);
+        }
+        
+        // 4. Try enrollment's subjectId
+        if (!subjectProgress && studentSelectedEnrollment?.subjectId) {
+          subjectProgress = progressList.find(p => p.subjectId === studentSelectedEnrollment.subjectId);
+          console.log('[StudentProgressComparison] Tried enrollment subjectId:', studentSelectedEnrollment.subjectId, 'found:', !!subjectProgress);
+        }
+        
+        // 5. Fallback to subject.id
+        if (!subjectProgress) {
+          subjectProgress = progressList.find(p => p.subjectId === subject.id);
+          console.log('[StudentProgressComparison] Tried subject.id fallback:', subject.id, 'found:', !!subjectProgress);
+        }
+        
+        console.log('[StudentProgressComparison] Final progress found:', subjectProgress?.overallProgress);
         setTaughtProgress(subjectProgress || null);
       });
     }
@@ -152,7 +189,7 @@ export function StudentProgressComparison({ subject, studentProgress }: StudentP
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [user, subject.id, studentSelectedEnrollment]);
+  }, [user, subject.id, studentSelectedEnrollment, syllabusId]);
   
   // Calculate teacher's overall progress
   const teacherProgress = useMemo(() => {
