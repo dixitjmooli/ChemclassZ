@@ -14,7 +14,8 @@ import {
   createUser, 
   deleteUser,
   subscribeToAllTeachers,
-  subscribeToAllStudents
+  subscribeToAllStudents,
+  updateUserPassword
 } from '@/lib/firebase-service';
 import { InstituteTeacherProgress } from '@/components/app/InstituteTeacherProgress';
 import { User } from '@/lib/store';
@@ -36,6 +37,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   Building2,
   Users,
   GraduationCap,
@@ -49,7 +58,10 @@ import {
   TrendingUp,
   AlertTriangle,
   ArrowRight,
-  ChevronLeft
+  ChevronLeft,
+  KeyRound,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 // Standard CBSE Classes
@@ -114,6 +126,13 @@ export function InstituteOwnerDashboard() {
   const [newTeacherName, setNewTeacherName] = useState('');
   const [newTeacherEmail, setNewTeacherEmail] = useState('');
   const [newTeacherPassword, setNewTeacherPassword] = useState('');
+  
+  // Password change dialog state
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [selectedTeacher, setSelectedTeacher] = useState<{ id: string; name: string; email: string } | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   // Class creation step-based form
   const [classStep, setClassStep] = useState<1 | 2 | 3>(1);
@@ -226,6 +245,41 @@ export function InstituteOwnerDashboard() {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
       setDeleteConfirm({ type: null, id: '', name: '' });
+    }
+  };
+
+  // Handle password change for teacher
+  const handleOpenPasswordDialog = (teacher: { id: string; name: string; email: string }) => {
+    setSelectedTeacher(teacher);
+    setNewPassword('');
+    setShowPasswordDialog(true);
+  };
+
+  const handleChangePassword = async () => {
+    if (!selectedTeacher || !newPassword.trim()) {
+      toast({ title: 'Error', description: 'Please enter a new password', variant: 'destructive' });
+      return;
+    }
+    
+    if (newPassword.length < 4) {
+      toast({ title: 'Error', description: 'Password must be at least 4 characters', variant: 'destructive' });
+      return;
+    }
+    
+    setChangingPassword(true);
+    try {
+      await updateUserPassword(selectedTeacher.id, newPassword);
+      toast({ 
+        title: 'Password Updated', 
+        description: `Password changed for ${selectedTeacher.name}` 
+      });
+      setShowPasswordDialog(false);
+      setSelectedTeacher(null);
+      setNewPassword('');
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -562,14 +616,26 @@ export function InstituteOwnerDashboard() {
                           <p className="font-medium">{teacher.name}</p>
                           <p className="text-sm text-muted-foreground">{teacher.email}</p>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-red-500 hover:text-red-700"
-                          onClick={() => removeTeacher(teacher.id, teacher.name)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-purple-500 hover:text-purple-700 hover:bg-purple-50"
+                            onClick={() => handleOpenPasswordDialog({ id: teacher.id, name: teacher.name, email: teacher.email || '' })}
+                            title="Change Password"
+                          >
+                            <KeyRound className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-500 hover:text-red-700"
+                            onClick={() => removeTeacher(teacher.id, teacher.name)}
+                            title="Remove Teacher"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                       {/* Show all assignments */}
                       <div className="flex flex-wrap gap-1">
@@ -937,6 +1003,63 @@ export function InstituteOwnerDashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Password Change Dialog for Teachers */}
+      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-purple-600" />
+              Change Teacher Password
+            </DialogTitle>
+            <DialogDescription>
+              Change password for <strong>{selectedTeacher?.name}</strong> ({selectedTeacher?.email})
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-password-inst">New Password</Label>
+              <div className="relative">
+                <Input
+                  id="new-password-inst"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter new password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">Password must be at least 4 characters</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPasswordDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleChangePassword} 
+              disabled={changingPassword || !newPassword.trim() || newPassword.length < 4}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              {changingPassword ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                'Update Password'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

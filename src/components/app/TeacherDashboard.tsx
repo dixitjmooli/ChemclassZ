@@ -26,11 +26,20 @@ import {
   getUser,
   Subject,
   CustomSubject,
-  getStudentsForInstitute
+  getStudentsForInstitute,
+  updateUserPassword
 } from '@/lib/firebase-service';
 import { SyllabusManager } from '@/components/app/SyllabusManager';
 import { TeacherSyllabusProgress } from '@/components/app/TeacherSyllabusProgress';
 import { TeacherClassSelector } from '@/components/app/TeacherClassSelector';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { 
   GraduationCap, 
   BookOpen, 
@@ -43,7 +52,10 @@ import {
   ArrowLeft,
   Plus,
   TrendingUp,
-  User
+  User,
+  KeyRound,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 export function TeacherDashboard() {
@@ -79,6 +91,13 @@ export function TeacherDashboard() {
   const [newTestName, setNewTestName] = useState('');
   const [newTestMaxMarks, setNewTestMaxMarks] = useState('');
   const [newTestChapterId, setNewTestChapterId] = useState('');
+  
+  // Password change dialog state
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<{ id: string; name: string; username: string } | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   // Get teacher's assignments
   const assignments = user?.assignments || [];
@@ -380,6 +399,41 @@ export function TeacherDashboard() {
       toast({ title: 'Stars Updated', description: `${change > 0 ? '+' : ''}${change} stars ${reason}` });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  // Handle password change for student
+  const handleOpenPasswordDialog = (student: { id: string; name: string; username: string }) => {
+    setSelectedStudent(student);
+    setNewPassword('');
+    setShowPasswordDialog(true);
+  };
+
+  const handleChangePassword = async () => {
+    if (!selectedStudent || !newPassword.trim()) {
+      toast({ title: 'Error', description: 'Please enter a new password', variant: 'destructive' });
+      return;
+    }
+    
+    if (newPassword.length < 4) {
+      toast({ title: 'Error', description: 'Password must be at least 4 characters', variant: 'destructive' });
+      return;
+    }
+    
+    setChangingPassword(true);
+    try {
+      await updateUserPassword(selectedStudent.id, newPassword);
+      toast({ 
+        title: 'Password Updated', 
+        description: `Password changed for ${selectedStudent.name}` 
+      });
+      setShowPasswordDialog(false);
+      setSelectedStudent(null);
+      setNewPassword('');
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -813,6 +867,7 @@ export function TeacherDashboard() {
                       <th className="text-left py-2 px-4">Username</th>
                       <th className="text-left py-2 px-4">Progress</th>
                       <th className="text-left py-2 px-4">Stars</th>
+                      <th className="text-left py-2 px-4">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -840,6 +895,21 @@ export function TeacherDashboard() {
                               <span>{getStudentStars(student.id)}</span>
                             </span>
                           </td>
+                          <td className="py-2 px-4">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenPasswordDialog({ 
+                                id: student.id, 
+                                name: student.name, 
+                                username: student.username || '' 
+                              })}
+                              className="gap-1"
+                            >
+                              <KeyRound className="w-3 h-3" />
+                              Change Password
+                            </Button>
+                          </td>
                         </tr>
                       );
                     })}
@@ -850,6 +920,63 @@ export function TeacherDashboard() {
           </CardContent>
         </Card>
       )}
+
+      {/* Password Change Dialog */}
+      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-purple-600" />
+              Change Student Password
+            </DialogTitle>
+            <DialogDescription>
+              Change password for <strong>{selectedStudent?.name}</strong> ({selectedStudent?.username})
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New Password</Label>
+              <div className="relative">
+                <Input
+                  id="new-password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter new password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">Password must be at least 4 characters</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPasswordDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleChangePassword} 
+              disabled={changingPassword || !newPassword.trim() || newPassword.length < 4}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              {changingPassword ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                'Update Password'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
